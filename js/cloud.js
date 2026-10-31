@@ -1,5 +1,5 @@
 /* QWQ Builder · Google арқылы кіру (Firebase Auth) және Firestore синхронды.
-   QWQ жобасындағы (qwq-app-23553) дәл сол жүйе: Auth (Google popup) + Firestore users/{uid}/{коллекция}/{id},
+   QWQ Builder-дің жеке Firebase жобасы (qwq-builder): Auth (Google popup) + Firestore users/{uid}/builderChats/{id},
    құжатта id, updated (ms) өрістері, қақтығыста соңғы өзгеріс жеңеді (LWW), өшіру — tombstone.
    Кірмесе — бәрі тек осы браузердегі IndexedDB-де. */
 (function (Q) {

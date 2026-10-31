@@ -1,26 +1,28 @@
 # Firebase (Google арқылы кіру + синхрон)
 
-QWQ Builder QWQ жобасындағы дәл сол Firebase жобасын қолданады: **qwq-app-23553**
-(Auth — Google, Firestore — `users/{uid}/builderChats/{chatId}`).
+QWQ Builder өз жеке Firebase жобасын қолданады: **qwq-builder**
+(Auth — Google, Firestore — `users/{uid}/builderChats/{chatId}`). Басқа жобалармен байланысы жоқ.
 
-## 1. Authorized domains (міндетті, бір рет)
+## 1. Firebase консолінде (бір рет)
 
-Google терезесі сайттың доменін Firebase танымаса ашылмайды (`auth/unauthorized-domain`).
+1. **Build → Authentication → Sign-in method** → **Google** қосулы болсын (Enable).
+2. **Build → Authentication → Settings → Authorized domains** → **Add domain** → `ultramediadizaster-commits.github.io`.
+   (`localhost` әдепкіде бар. Сайт басқа доменге көшсе, оны да қос.) Бұл болмаса, Google терезесі `auth/unauthorized-domain` береді.
+3. **Build → Firestore Database → Create database** (production mode, өзіңе жақын аймақ). База жасалмаса, ережелерді де деплой жасау мүмкін емес.
 
-1. https://console.firebase.google.com → **qwq-app** жобасы (`qwq-app-23553`).
-2. Сол жақ мәзір: **Build → Authentication → Settings** (Параметры) → **Authorized domains**.
-3. **Add domain** басып, мынаны жаз: `ultramediadizaster-commits.github.io` → **Add**.
-   (`localhost` әдепкіде бар. Сайт басқа доменге көшсе, оны да осылай қос.)
+## 2. Firestore ережелері
 
-## 2. Firestore ережелері (міндетті, бір рет)
+`firestore.rules` — тек `users/{uid}/builderChats/{chatId}`: әр пайдаланушы тек өз құжаттарын оқиды/жазады, қалғанына тыйым.
 
-`firestore.rules` — QWQ ережелерінің дәл көшірмесі, тек рұқсат етілген коллекциялар тізіміне `builderChats` қосылған.
-Әр пайдаланушы тек өз `users/{uid}/…` құжаттарын оқиды/жазады, қалғанына тыйым.
+Деплой (қолданушының аккаунты `qwq-builder` жобасының иесі/редакторы болуы керек):
 
 ```bash
 cd firebase
-firebase deploy --only firestore:rules --project qwq-app-23553
+firebase login:add            # qwq-builder жобасы жасалған Google аккаунтымен
+firebase deploy --only firestore:rules --project qwq-builder
 ```
+
+Немесе қолмен: Firebase консолі → Firestore Database → **Rules** → `firestore.rules` мазмұнын қойып → **Publish**.
 
 Деплой жасалмағанша синхрон `permission-denied` қатесін береді (баптауларда «Қате: …» көрінеді),
 ал кірмей жұмыс істеу (тек браузерде сақтау) әдеттегідей жұмыс істей береді.
