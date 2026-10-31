@@ -41,15 +41,25 @@
     const S = Q.store;
     if (!S.key) throw new QErr("API кілті керек. Баптаулардан енгіз.", "nokey");
     const stream = o.stream !== false;
+    // жауап тоқтап қалса (үнсіз қатып қалу), әрекет үзіліп қайта жіберіледі
+    const ac = new AbortController();
+    let stalled = false, timer;
+    const arm = (ms) => { clearTimeout(timer); timer = setTimeout(() => { stalled = true; ac.abort(); }, ms); };
+    if (o.signal) { if (o.signal.aborted) ac.abort(); else o.signal.addEventListener("abort", () => ac.abort(), { once: true }); }
+    try { return await attempt(); } finally { clearTimeout(timer); }
+
+    async function attempt() {
     let res;
+    arm(stream ? 60000 : 120000);
     try {
       res = await fetch(S.base + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.key },
         body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream }),
-        signal: o.signal,
+        signal: ac.signal,
       });
     } catch (e) {
+      if (stalled) throw new QErr("QWQ жауап бермей қатып қалды.", "stall", true);
       if (e.name === "AbortError") throw new QErr("Тоқтатылды.", "abort");
       throw new QErr(navigator.onLine ? "QWQ серверіне қосылу мүмкін болмады. Интернетті тексер." : "Интернет жоқ. Байланысты тексер немесе демо режимін қос.", navigator.onLine ? "net" : "offline", true);
     }
@@ -58,13 +68,14 @@
       throw new QErr(statusMsg(res.status, await res.text().catch(() => "")), "http", retry, parseRetryAfter(res.headers.get("retry-after")));
     }
     S.usage.inc();
+    arm(stream ? 45000 : 120000);
 
     const ct = res.headers.get("content-type") || "";
     let answer = "", sources = [], tools = [];
 
     if (!stream || !ct.includes("text/event-stream")) {
       let j;
-      try { j = await res.json(); } catch (e) { throw new QErr("Сервер түсініксіз жауап қайтарды.", "parse", true); }
+      try { j = await res.json(); } catch (e) { throw new QErr(stalled ? "QWQ жауап бермей қатып қалды." : "Сервер түсініксіз жауап қайтарды.", stalled ? "stall" : "parse", true); }
       answer = j.answer ?? j.text ?? j.choices?.[0]?.message?.content ?? "";
       if (!answer) throw new QErr("QWQ бос жауап қайтарды.", "empty", true);
       if (o.onDelta) o.onDelta(answer, answer);
@@ -91,6 +102,7 @@
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
+        arm(45000);
         buf += dec.decode(value, { stream: true });
         const lines = buf.split("\n");
         buf = lines.pop();
@@ -99,12 +111,13 @@
       if (buf) handle(buf);
     } catch (e) {
       if (e instanceof QErr) throw e;
-      if (e.name === "AbortError") throw new QErr("Тоқтатылды.", "abort");
+      if (e.name === "AbortError" && !stalled) throw new QErr("Тоқтатылды.", "abort");
       if (answer) return { answer, sources, tools, partial: true };
-      throw new QErr("Жауап жолда үзілді.", "stream", true);
+      throw new QErr(stalled ? "QWQ жауап бермей қатып қалды." : "Жауап жолда үзілді.", stalled ? "stall" : "stream", true);
     }
     if (!answer) throw new QErr("QWQ бос жауап қайтарды.", "empty", true);
     return { answer, sources, tools };
+    }
   }
 
   /**
@@ -114,12 +127,13 @@
   async function chat(o) {
     if (Q.demo && Q.demo.active) return Q.demo.chat(o);
     let last;
-    for (let i = 0; i < MAX_TRIES; i++) {
+    const max = o.tries || MAX_TRIES;     // міндетті емес сұраулар (мысалы, іздеу) үшін азырақ әрекет
+    for (let i = 0; i < max; i++) {
       try { return await once(o); }
       catch (e) {
         if (!(e instanceof QErr)) throw e;
         last = e;
-        if (!e.retry || i === MAX_TRIES - 1) throw e;
+        if (!e.retry || i === max - 1) throw e;
         const back = Math.min(Math.pow(2, i), BACKOFF_CAP);
         await wait(Math.max(back, e.retryAfter || 0) * 1000, o.signal);
       }

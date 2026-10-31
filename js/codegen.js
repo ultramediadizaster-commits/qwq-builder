@@ -65,16 +65,36 @@ ${html}`;
     return b;
   }
 
+  // бөліктің ең аз көлемі: одан қысқа болса, "шағын демо" деп санап, кеңейтіп қайта жаздырамыз
+  const MIN = { body: 3000, css: 3500, js: 5000 };
+  const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+  /** Бөлік шынымен аяқталған ба: CSS жақшалары, JS синтаксисі, HTML тегтері */
+  function looksComplete(k, t) {
+    if (!t) return false;
+    if (k === "css") { const a = (t.match(/{/g) || []).length, b = (t.match(/}/g) || []).length; return a > 0 && a === b; }
+    if (k === "js") { try { new AsyncFn(t); return true; } catch (e) { return false; } }
+    const tags = "div|section|main|header|footer|nav|ul|ol|form|button|table|aside|article|select|label";
+    const a = (t.match(new RegExp(`<(${tags})\\b`, "gi")) || []).length, b = (t.match(new RegExp(`</(${tags})>`, "gi")) || []).length;
+    return a === b;
+  }
+
   async function writePart(k, n, o, parts) {
     S.data.files[k] = ""; o.onFile(k);
-    o.onPart(k, `${n}/3 · ${NAME[k]}`);
-    const tick = throttleRaf((full) => { S.data.files[k] = clean(full, k); o.onFile(k); });
-    const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: true, message: prompt(k, o, parts),
-      onDelta: (_, full) => { o.onLive(NAME[k], full); tick(full); },
-    });
-    tick.cancel();
-    const text = await finish(k, r.answer, `${n}/3 · ${NAME[k]}`, o);
+    const gen = async (extra) => {
+      o.onPart(k, `${n}/3 · ${NAME[k]}${extra ? " · кеңейту" : ""}`);
+      const tick = throttleRaf((full) => { S.data.files[k] = clean(full, k); o.onFile(k); });
+      const r = await Q.api.chat({
+        signal: o.sig, web: false, stream: true, message: prompt(k, o, parts) + extra,
+        onDelta: (_, full) => { o.onLive(NAME[k], full); tick(full); },
+      });
+      tick.cancel();
+      return finish(k, r.answer, `${n}/3 · ${NAME[k]}`, o);
+    };
+    let text = await gen("");
+    if (text.length < MIN[k] && !(Q.demo && Q.demo.active)) {
+      const again = await gen(`\n\nЕСКЕРТУ: алдыңғы жауап тым қысқа болды (${text.length} таңба): бұл шағын демо емес, толыққанды өнім болуы керек. Кемінде ${MIN[k]} таңбалық ТОЛЫҚ нұсқасын жаз.`);
+      if (again.length > text.length) text = again;
+    }
     S.data.files[k] = text; o.onFile(k);
     o.onLive(NAME[k], text);
     return text;
@@ -83,12 +103,13 @@ ${html}`;
   /** Маркер жоқ → бөлік үзілген: жалғастыру (1-ші рет стримдеп, одан соң стримсіз: Worker-дің `<tool` кесуінен қорғану) */
   async function finish(k, raw0, label, o) {
     let raw = raw0, tries = 0;
-    while (!done(raw, k) && tries < 4) {
+    const ok = () => done(raw, k) && looksComplete(k, clean(raw, k));   // маркер бар, бірақ код үзілген болса да жалғастырамыз
+    while (!ok() && tries < 4) {
       tries++;
       o.onPart(k, `${label} · жалғастыру ${tries}/4`);
       const piece = await Q.api.chat({
         signal: o.sig, web: false, stream: tries === 1 && !(Q.demo && Q.demo.active) ? true : false,
-        message: `Төмендегі ${NAME[k]} коды үзіліп қалған болуы мүмкін. Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, \`\`\` қоспа. Ең соңғы жолы дәл мынау болсын: ${MARK[k]}. Егер бөлік шынымен аяқталған болса, тек соңғы маркерді жаз: ${MARK[k]}\n\nСоңғы бөлік:\n${clean(raw, k).slice(-1500)}`,
+        message: `Төмендегі ${NAME[k]} коды үзіліп қалды (толық емес). Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, \`\`\` қоспа. Ең соңғы жолы дәл мынау болсын: ${MARK[k]}${looksComplete(k, clean(raw, k)) ? `. Егер бөлік шынымен аяқталған болса, тек соңғы маркерді жаз: ${MARK[k]}` : ""}\n\nСоңғы бөлік:\n${clean(raw, k).slice(-1500)}`,
         onDelta: (_, full) => o.onLive(NAME[k], raw + "\n" + full),
       });
       const add = overlap(clean(raw, k), piece.answer.replace(/^\s*```[a-zA-Z]*\s*\n?/, "").replace(/\n?```\s*$/, ""));

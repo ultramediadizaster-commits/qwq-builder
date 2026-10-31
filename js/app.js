@@ -35,7 +35,7 @@
   /* ---- Баптаулар ---- */
   const sc = $("#settings");
   function openSettings() {
-    $("#set-key").value = S.key; $("#set-base").value = S.base;
+    $("#set-key").value = S.key; $("#set-base").value = S.base; $("#set-share").value = S.shareBase;
     $("#set-demo").textContent = Q.demo.active ? "Демоны өшіру" : "Демо";
     $("#limit-box").hidden = true;
     sc.classList.add("on");
@@ -47,7 +47,9 @@
   function save() {
     const base = $("#set-base").value.trim();
     if (base && !/^https?:\/\//i.test(base)) { toast("Сервер мекенжайы http:// немесе https:// деп басталуы керек.", "err"); return false; }
-    S.key = $("#set-key").value; S.base = base; status(); return true;
+    const sh = $("#set-share").value.trim();
+    if (sh && !/^https?:\/\//i.test(sh)) { toast("QR сервері http:// немесе https:// деп басталуы керек.", "err"); return false; }
+    S.key = $("#set-key").value; S.base = base; S.shareBase = sh; status(); return true;
   }
 
   async function test() {
@@ -88,7 +90,7 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sc.classList.contains("on")) closeSettings(); });
     $$("#nav button").forEach((b) => (b.onclick = () => go(b.dataset.view)));
 
-    Q.chat.init(); Q.code.render(); Q.result.init(); status();
+    Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); status();
     const h = location.hash.slice(1);
     go(VIEWS.includes(h) && (h === "chat" || S.data.idea) ? h : "chat");
     window.addEventListener("offline", () => toast("Интернет байланысы үзілді.", "err"));

@@ -26,6 +26,7 @@
           <button class="btn btn--icon glass glass--flat" id="t-undo" type="button" aria-label="Алдыңғы нұсқа" title="Алдыңғы нұсқа">${ic("undo", "ico ico--sm")}</button>
           <button class="btn btn--sm glass glass--flat" id="t-html" type="button">${ic("download", "ico ico--sm")}HTML</button>
           <button class="btn btn--sm glass glass--flat" id="t-zip" type="button">${ic("download", "ico ico--sm")}ZIP</button>
+          <button class="btn btn--sm glass glass--flat" id="t-qr" type="button">${ic("qr", "ico ico--sm")}QR</button>
           <button class="btn btn--icon glass glass--flat" id="t-win" type="button" aria-label="Жаңа терезеде ашу" title="Жаңа терезеде ашу">${ic("ext", "ico ico--sm")}</button>
         </div>
       </div>
@@ -39,6 +40,7 @@
     $("#t-html").onclick = dlHtml;
     $("#t-zip").onclick = dlZip;
     $("#t-win").onclick = openWin;
+    $("#t-qr").onclick = () => Q.share.open();
     $("#busy-stop").onclick = () => ctrl && ctrl.abort();
     ui.busy.hidden = !busy;
     if (ro) ro.disconnect();

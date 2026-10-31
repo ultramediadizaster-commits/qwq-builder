@@ -205,7 +205,7 @@
       let info = "";
       try {
         const r = await Q.api.chat({
-          signal: sig, web: true, stream: false,
+          signal: sig, web: true, stream: false, tries: 3,
           message: `Мына қосымшаны жасау үшін интернеттен пайдалы мәлімет тап: нақты деректер, ережелер, формулалар, жақсы UI үлгілері.\n\n${brief(idea)}\n\nҚысқа маркерлі тізім бер (14 жолға дейін), қазақша, Markdown пішімінде, элементтердің арасында бос жол қалдыр.`,
         });
         const src = (r.sources || []).map((s) => (typeof s === "string" ? s : s.url ? `[${s.title || s.url}](${s.url})` : s.title || "")).filter(Boolean);
