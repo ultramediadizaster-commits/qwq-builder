@@ -2,7 +2,8 @@
 (function (Q) {
   const { $, ic, toast } = Q;
   const S = Q.store;
-  let last = null;            // { html, url } — HTML өзгермесе, сол сілтеме қайта қолданылады
+  // HTML өзгермесе, сақталған сілтеме қайта қолданылады
+  const sign = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return s.length + ":" + (h >>> 0).toString(36); };
   const box = () => $("#qr");
 
   function svg(url) {
@@ -36,11 +37,13 @@
     const html = Q.result.getHtml();
     if (!html) return;
     box().classList.add("on");
-    if (last && last.html === html) { show(last.url); return; }
+    const sig = sign(html);
+    const sh = S.data.share;       // QR сілтемесі чатпен бірге сақталады
+    if (sh && sh.sig === sig && sh.base === S.shareBase) { show(sh.url); return; }
     $("#qr-body").hidden = true; $("#qr-load").hidden = false;
     try {
       const url = await post(html);
-      last = { html, url };
+      S.data.share = { url, sig, base: S.shareBase }; S.save();
       if (box().classList.contains("on")) show(url);
     } catch (e) {
       close();

@@ -132,5 +132,5 @@
     renderAll();
   }
 
-  Q.chat = { init, renderAll, updateKeyWarn, send };
+  Q.chat = { init, renderAll, updateKeyWarn, send, isBusy: () => busy };
 })(window.QWQ);

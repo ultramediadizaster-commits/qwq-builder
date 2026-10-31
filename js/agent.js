@@ -29,6 +29,13 @@
       return;
     }
     const hasHtml = !!S.data.files.html;
+    const ag = S.data.agent;     // сақталған агент қадамдары (чат ауысқанда қалпына келеді)
+    const stepLi = (s) => {
+      const a = ag && ag.steps && ag.steps.find((x) => x.k === s.k);
+      const st = a ? a.s : (hasHtml ? "done" : "");
+      const cls = st === "warn" ? "done warn" : st;
+      return `<li class="step${cls ? " " + cls : ""}" data-k="${s.k}"><div class="s-ic">${ic(st === "done" || st === "warn" ? "check" : s.i, "ico ico--sm")}</div><div><div class="s-t">${s.t}</div><div class="s-d">${a ? esc(a.d || "") : (hasHtml ? "" : s.d)}</div></div><div class="s-time">${a ? esc(a.t || "") : ""}</div></li>`;
+    };
     c.innerHTML = `
       <article class="card glass">
         <h2>${esc(idea.title)}</h2>
@@ -40,9 +47,9 @@
           <button class="btn btn--lg glass glass--flat" type="button" id="stop-agent" hidden>${ic("stop", "ico ico--sm")}Тоқтату</button>
         </div>
       </article>
-      <article class="card glass" id="agent-card" ${hasHtml || R.active ? "" : "hidden"}>
+      <article class="card glass" id="agent-card" ${hasHtml || R.active || ag ? "" : "hidden"}>
         <div class="agent-h"><div class="eyebrow">Агент</div><div class="timer" id="timer">00:00.0</div></div>
-        <ol class="steps" id="steps">${STEPS.map((s) => `<li class="step${hasHtml ? " done" : ""}" data-k="${s.k}"><div class="s-ic">${ic(hasHtml ? "check" : s.i, "ico ico--sm")}</div><div><div class="s-t">${s.t}</div><div class="s-d">${hasHtml ? "" : s.d}</div></div><div class="s-time"></div></li>`).join("")}</ol>
+        <ol class="steps" id="steps">${STEPS.map(stepLi).join("")}</ol>
         <div class="live glass glass--dark glass--flat" id="live" hidden>
           <div class="live-h"><span id="live-name">index.html</span><span id="live-m"></span></div>
           <pre class="codeview caret" id="live-code"></pre>
@@ -70,6 +77,7 @@
     };
     u.files.onclick = (e) => { const b = e.target.closest(".file"); if (b) openFile(b.dataset.k); };
     Object.keys(FILES).forEach((k) => S.data.files[k] && addFileRow(k, false));
+    if (ag && !R.active) u.timer.textContent = ag.total || "00:00.0";
     if (R.active) { setRunUI(true); }
   }
   const $$files = () => Q.$$(".file").forEach((b) => b.setAttribute("aria-expanded", b.dataset.k === R.open));
@@ -181,6 +189,8 @@
     R.ui.live.dataset.on = "0";
     setRunUI(true);
     STEPS.forEach((s) => setStep(s.k, "", s.d));
+    R.ui.steps.querySelectorAll(".s-time").forEach((e) => (e.textContent = ""));
+    S.data.agent = null; S.data.share = null;
     R.t0 = performance.now();
     R.tick = setInterval(() => { R.ui.timer && (R.ui.timer.textContent = fmtTime(performance.now() - R.t0)); }, 100);
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -308,6 +318,17 @@
     } finally {
       clearInterval(R.tick);
       R.active = false; R.ctrl = null;
+      // қадамдардың соңғы күйін чатпен бірге сақтаймыз
+      if (R.ui.steps) {
+        S.data.agent = {
+          total: R.ui.timer.textContent,
+          steps: STEPS.map((s) => {
+            const li = R.ui.steps.querySelector(`[data-k="${s.k}"]`);
+            return { k: s.k, s: li.classList.contains("warn") ? "warn" : li.classList.contains("done") ? "done" : "", d: li.querySelector(".s-d").textContent, t: li.querySelector(".s-time").textContent };
+          }),
+        };
+        S.save();
+      }
       if (R.ui.go) {
         R.ui.go.hidden = false; R.ui.stop.hidden = true;
         R.ui.go.innerHTML = `${ic("spark")}${S.data.files.html ? "Қайта жасау" : "Қайта байқау"}`;
@@ -318,5 +339,5 @@
     }
   }
 
-  Q.code = { render, run, extractHtml, complete, dedupe, stripFence };
+  Q.code = { render, run, isRunning: () => R.active, extractHtml, complete, dedupe, stripFence };
 })(window.QWQ);

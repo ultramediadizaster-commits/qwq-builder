@@ -1,0 +1,24 @@
+rules_version = '2';
+// QWQ + QWQ Builder (builderChats): әр пайдаланушы тек өз users/{uid} деректерін оқып-жаза алады. Басқаның бәріне тыйым.
+// Кілттер мен токендер (QWQ кілті, GitHub токені) бұлтқа ЕШҚАШАН жазылмайды — ережелер де тексереді.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function allowedCol(col) { return col in ['chats', 'projects', 'codeTasks', 'memory', 'settings', 'builderChats']; }
+    function validDoc(docId) {
+      let d = request.resource.data;
+      return d.id == docId
+        && d.updated is number
+        && !d.keys().hasAny(['accessKey', 'fishKey', 'geminiKey', 'token', 'github_token', 'apiKey', 'secret', 'password']);
+    }
+
+    match /users/{uid}/{col}/{docId} {
+      allow read, delete: if isOwner(uid) && allowedCol(col);
+      allow create, update: if isOwner(uid) && allowedCol(col) && validDoc(docId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

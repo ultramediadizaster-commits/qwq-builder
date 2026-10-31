@@ -37,6 +37,7 @@
   function openSettings() {
     $("#set-key").value = S.key; $("#set-base").value = S.base; $("#set-share").value = S.shareBase;
     $("#set-demo").textContent = Q.demo.active ? "Демоны өшіру" : "Демо";
+    cloudUI();
     $("#limit-box").hidden = true;
     sc.classList.add("on");
     setTimeout(() => $("#set-key").focus(), 250);
@@ -63,9 +64,22 @@
     b.disabled = false; b.textContent = old;
   }
 
-  function init() {
-    S.load();
+  function cloudUI() {
+    const u = Q.cloud.user;
+    $("#set-google-t").textContent = u ? "Шығу" : "Google арқылы кіру";
+    const t = $("#cloud-t");
+    if (!u) { t.textContent = ""; return; }
+    const st = { syncing: "Синхрондалуда…", synced: "Синхрондалды ✓", offline: "Желі жоқ", error: "Қате: " + (Q.cloud.lastError || "").slice(0, 90) }[Q.cloud.status] || "";
+    t.textContent = `${u.email || "Google"} · ${st}`;
+  }
+
+  async function init() {
+    await S.init();
     $("#btn-settings").onclick = openSettings;
+    $("#set-google").onclick = () => (Q.cloud.user ? Q.cloud.signOut() : Q.cloud.signIn());
+    Q.cloud.onState(cloudUI);
+    // басқа құрылғыдан келген өзгерістер: бос тұрғанда экранды жаңартамыз
+    Q.cloud.onRemote = () => { if (!Q.chat.isBusy() && !Q.code.isRunning()) Q.chats.refreshAll(Q.view); };
     $("#status").onclick = openSettings;
     $("#set-save").onclick = () => { if (save()) { closeSettings(); toast("Сақталды", "ok", 1800); } };
     $("#set-test").onclick = test;
@@ -82,15 +96,16 @@
       if (on) Q.demo.play(); else toast("Демо өшірулі", "ok", 1800);
     };
     $("#set-eye").onclick = () => { const i = $("#set-key"); i.type = i.type === "password" ? "text" : "password"; };
-    $("#set-clear").onclick = () => {
-      if (!confirm("Бәрі өшірілсін бе?")) return;
-      S.reset(); Q.chat.renderAll(); Q.code.render(); Q.result.refresh(); closeSettings(); go("chat"); toast("Тазаланды", "ok", 1800);
+    $("#set-clear").onclick = async () => {
+      if (Q.chat.isBusy() || Q.code.isRunning()) { toast("Жұмыс аяқталғанша күте тұр", "err", 3000); return; }
+      if (!confirm("Барлық чаттар өшірілсін бе?")) return;
+      await S.clearAll(); Q.chats.refreshAll("chat"); closeSettings(); toast("Тазаланды", "ok", 1800);
     };
     sc.addEventListener("click", (e) => { if (e.target === sc) closeSettings(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sc.classList.contains("on")) closeSettings(); });
     $$("#nav button").forEach((b) => (b.onclick = () => go(b.dataset.view)));
 
-    Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); status();
+    Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); Q.chats.init(); Q.cloud.init(); status(); cloudUI();
     const h = location.hash.slice(1);
     go(VIEWS.includes(h) && (h === "chat" || S.data.idea) ? h : "chat");
     window.addEventListener("offline", () => toast("Интернет байланысы үзілді.", "err"));
