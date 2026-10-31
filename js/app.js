@@ -37,6 +37,7 @@
   function openSettings() {
     $("#set-key").value = S.key; $("#set-base").value = S.base;
     $("#set-demo").textContent = Q.demo.active ? "Демоны өшіру" : "Демо";
+    $("#limit-box").hidden = true;
     sc.classList.add("on");
     setTimeout(() => $("#set-key").focus(), 250);
   }
@@ -66,6 +67,13 @@
     $("#status").onclick = openSettings;
     $("#set-save").onclick = () => { if (save()) { closeSettings(); toast("Сақталды", "ok", 1800); } };
     $("#set-test").onclick = test;
+    const limitTxt = () => { $("#limit-t").textContent = `Бүгін: ${S.usage.used} · Қалды: ${S.usage.left} / ${S.usage.limit}`; };
+    $("#set-limit").onclick = () => {
+      const b = $("#limit-box");
+      b.hidden = !b.hidden;
+      if (!b.hidden) { $("#set-limit-n").value = S.usage.limit; limitTxt(); }
+    };
+    $("#set-limit-n").oninput = (e) => { if (+e.target.value > 0) { S.usage.limit = e.target.value; limitTxt(); } };
     $("#set-demo").onclick = () => {
       const on = !Q.demo.active;
       Q.demo.set(on); closeSettings();

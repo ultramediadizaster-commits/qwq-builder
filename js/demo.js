@@ -78,7 +78,8 @@ show();
       if (/JSON пішімінде/.test(m)) { ans = JSON.stringify(IDEA); o = Object.assign({}, o, { stream: false }); }
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
-      else if (/ЖҰМЫС ІСТЕЙТІН/.test(m)) ans = "```html\n" + APP + "\n```";
+      else if (/қателер табылды/.test(m)) ans = "```html\n" + APP + "\n```";                       // түзетілген нұсқа
+      else if (/ЖҰМЫС ІСТЕЙТІН/.test(m)) ans = "```html\n" + APP.replace("show();\n</script>", "show();\nrenderStats();\n</script>") + "\n```"; // әдейі 1 қатесі бар нұсқа
       else if (/толық коды/.test(m)) {
         const ask = (m.match(/«([^»]+)»/) || [])[1] || "";
         const col = (COLORS.find((c) => ask.toLowerCase().includes(c[0])) || [0, "#ff375f"])[1];

@@ -5,12 +5,26 @@
   let busy = false, ctrl = null;
   const msgsEl = $("#msgs"), input = $("#input"), sendBtn = $("#send");
 
+  // QWQ-ге әр чат сұрауымен жіберілетін пішім нұсқауы
+  const FORMAT = "\n\n(Жауабыңды markdown пішімінде жаз: қысқа абзацтар, керек жерде тізім мен **қалың** сөздер, абзацтардың арасында бос жол қалдыр.)";
+  const raw = new WeakMap();
+
+  function paintAI(b, text) { b.innerHTML = `<div class="md">${md(text)}</div>`; Q.enhance(b); }
+
   function bubble(role, content) {
     const b = el("div", { class: `msg glass glass--flat ${role === "user" ? "msg--user glass--tint" : "msg--ai"}` });
     if (role === "user") b.textContent = content;
-    else b.innerHTML = content ? `<div class="md">${md(content)}</div>` : `<div class="typing" aria-label="Жазып жатыр"><i></i><i></i><i></i></div>`;
+    else if (content) paintAI(b, content);
+    else b.innerHTML = `<div class="typing" aria-label="Жазып жатыр"><i></i><i></i><i></i></div>`;
     msgsEl.appendChild(b);
     return b;
+  }
+  /** Хабарламаның астындағы көшіру белгішесі */
+  function acts(b, text, role) {
+    raw.set(b, text);
+    const a = el("div", { class: `acts acts--${role}` }, `<button class="cp cp-msg" type="button" aria-label="Көшіру">${ic("copy", "ico ico--sm")}</button>`);
+    b.after(a);
+    return a;
   }
 
   function scrollEnd(smooth) {
@@ -28,7 +42,7 @@
 
   function renderAll() {
     msgsEl.innerHTML = "";
-    S.data.messages.forEach((m) => bubble(m.role, m.content));
+    S.data.messages.forEach((m) => acts(bubble(m.role, m.content), m.content, m.role === "user" ? "user" : "ai"));
     $("#hero").hidden = S.data.messages.length > 0;
     makeRow();
     updateKeyWarn();
@@ -58,24 +72,25 @@
     S.data.messages.push({ role: "user", content: text });
     $("#hero").hidden = true;
     const mk = $(".make-row"); if (mk) mk.remove();
-    bubble("user", text);
+    const ub = bubble("user", text), ua = acts(ub, text, "user");
     const ai = bubble("assistant", "");
     scrollEnd(true);
     setBusy(true);
     ctrl = new AbortController();
-    const paint = throttleRaf((full) => { ai.innerHTML = `<div class="md">${md(full)}</div>`; scrollEnd(false); });
+    let got = "";
+    const paint = throttleRaf((full) => { paintAI(ai, full); scrollEnd(false); });
     try {
-      const r = await Q.api.chat({ message: text, history, web: false, stream: true, signal: ctrl.signal, onDelta: (_, full) => paint(full) });
-      ai.innerHTML = `<div class="md">${md(r.answer)}</div>`;
+      const r = await Q.api.chat({ message: text + FORMAT, history, web: false, stream: true, signal: ctrl.signal, onDelta: (_, full) => { got = full; paint(full); } });
+      paint.cancel(); paintAI(ai, r.answer); acts(ai, r.answer, "ai");
       S.data.messages.push({ role: "assistant", content: r.answer });
       if (r.partial) toast("Жауап толық келмей үзілді, бірақ келгені сақталды.", "err");
     } catch (e) {
-      const partial = ai.textContent.trim() && !ai.querySelector(".typing");
       if (e.code === "abort") {
-        if (partial) S.data.messages.push({ role: "assistant", content: ai.innerText });
-        else { S.data.messages.pop(); ai.remove(); }
+        paint.cancel();
+        if (got.trim()) { paintAI(ai, got); acts(ai, got, "ai"); S.data.messages.push({ role: "assistant", content: got }); }
+        else { S.data.messages.pop(); ai.remove(); ub.remove(); ua.remove(); }
       } else {
-        S.data.messages.pop(); ai.remove();
+        S.data.messages.pop(); ai.remove(); ub.remove(); ua.remove();
         toast(e.message || "Белгісіз қате шықты. Қайта байқап көр.", "err");
         input.value = text; fit();
       }
@@ -105,6 +120,10 @@
     Q.mic.attach($("#input"), $("#mic"), fit);
     $("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
     sendBtn.addEventListener("click", () => { if (busy && ctrl) ctrl.abort(); });
+    msgsEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".cp-msg");
+      if (b) Q.copyText(raw.get(b.parentElement.previousElementSibling) || "", b);
+    });
     input.addEventListener("input", fit);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey && !Q.coarse && !e.isComposing) { e.preventDefault(); send(input.value); }

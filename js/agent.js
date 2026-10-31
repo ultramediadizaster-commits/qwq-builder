@@ -43,6 +43,7 @@
           <div class="live-h"><span>index.html</span><span id="live-m"></span></div>
           <pre class="codeview caret" id="live-code"></pre>
         </div>
+        <pre class="errs" id="errs" hidden></pre>
         <div class="row">
           <button class="btn glass glass--flat" type="button" id="peek" ${R.active || hasHtml ? "" : "hidden"}>${ic("eye", "ico ico--sm")}${hasHtml && !R.active ? "Нәтижені ашу" : "Нәтижені бірден көру"}</button>
         </div>
@@ -145,15 +146,24 @@
     return piece;
   }
 
-  function checkJS(html) {
-    try {
-      const d = new DOMParser().parseFromString(html, "text/html");
-      for (const s of d.querySelectorAll("script:not([src])")) {
-        if ((s.type || "").includes("module") || (s.type || "").includes("json")) continue;
-        try { new Function(s.textContent); } catch (e) { return e.message; }
-      }
-    } catch (e) {}
-    return "";
+  /** Код </html>-мен аяқталмаса, үзілген жерінен жалғастыруды сұрайды (ең көбі 4 рет) */
+  async function ensureComplete(code, sig, say, paint) {
+    let tries = 0;
+    while (!complete(code) && tries < 4) {
+      tries++;
+      say(`Жалғастыру ${tries}/4`);
+      const r = await Q.api.chat({
+        signal: sig, web: false, stream: true,
+        message: `Төмендегі HTML коды жауап ұзындығына байланысты үзіліп қалды. Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, түсініктеме қоспа, \`\`\` белгісін қоспа. Код </html> тегімен аяқталсын.\n\nСоңғы бөлік:\n${code.slice(-1500)}`,
+        onDelta: (_, full) => paint(code + full),
+      });
+      const piece = dedupe(code, stripFence(r.answer.replace(/^\s*```[a-zA-Z]*\s*\n?/, "")));
+      code = (code + piece).trim();
+      const e = code.toLowerCase().lastIndexOf("</html>");
+      if (e >= 0) code = code.slice(0, e + 7);
+    }
+    if (!complete(code)) code += "\n</script></body></html>";
+    return code;
   }
 
   async function run() {
@@ -175,11 +185,13 @@
     try {
       /* 1. Жоспар */
       setStep("plan", "active", "");
+      const planTick = throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`));
       const p = await Q.api.chat({
         signal: sig, web: false, stream: true,
-        message: `Сен тәжірибелі веб-әзірлеушісің. Мына қосымша үшін қысқа әзірлеу жоспарын жаса.\n\n${brief(idea)}\n\nЖауапты қазақша, Markdown пішімінде бер, 30 жолдан аспасын. Бөлімдер: ## Мақсат, ## Экрандар, ## Негізгі функциялар, ## Деректер (localStorage), ## Дизайн (түстер, көңіл-күй). Код жазба.`,
-        onDelta: throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`)),
+        message: `Сен тәжірибелі веб-әзірлеушісің. Мына қосымша үшін қысқа әзірлеу жоспарын жаса.\n\n${brief(idea)}\n\nЖауапты қазақша, Markdown пішімінде бер, 30 жолдан аспасын. Бөлімдер: ## Мақсат, ## Экрандар, ## Негізгі функциялар, ## Деректер (localStorage), ## Дизайн (түстер, көңіл-күй). Код жазба. Қысқа абзацтар мен тізімдер қолдан, абзацтардың арасында бос жол қалдыр.`,
+        onDelta: planTick,
       });
+      planTick.cancel();
       S.data.files.plan = p.answer; addFileRow("plan");
       setStep("plan", "done", "");
 
@@ -190,12 +202,15 @@
       try {
         const r = await Q.api.chat({
           signal: sig, web: true, stream: false,
-          message: `Мына қосымшаны жасау үшін интернеттен пайдалы мәлімет тап: нақты деректер, ережелер, формулалар, жақсы UI үлгілері.\n\n${brief(idea)}\n\nҚысқа маркерлі тізім бер (14 жолға дейін), қазақша.`,
+          message: `Мына қосымшаны жасау үшін интернеттен пайдалы мәлімет тап: нақты деректер, ережелер, формулалар, жақсы UI үлгілері.\n\n${brief(idea)}\n\nҚысқа маркерлі тізім бер (14 жолға дейін), қазақша, Markdown пішімінде, элементтердің арасында бос жол қалдыр.`,
         });
         const src = (r.sources || []).map((s) => (typeof s === "string" ? s : s.url ? `[${s.title || s.url}](${s.url})` : s.title || "")).filter(Boolean);
         info = `# Жиналған мәлімет\n\n${r.answer}\n` + (src.length ? `\n## Дереккөздер\n${src.map((x) => "- " + x).join("\n")}\n` : "");
         S.data.files.info = info; addFileRow("info");
-        setStep("search", "done", src.length ? `${src.length} дереккөз` : "");
+        // Worker кейде sources-ті бос қайтарады: сілтемелерді жауап мәтінінен санаймыз
+        const urls = new Set((r.answer.match(/https?:\/\/[^\s)\]>"']+/g) || []).map((u) => u.replace(/[.,;]+$/, "")));
+        const n = src.length || urls.size;
+        setStep("search", "done", n ? `${n} дереккөз` : (r.tools || []).includes("web_search") ? "Іздеу орындалды" : "");
       } catch (e) {
         if (e.code === "abort") throw e;
         S.data.files.info = "# Жиналған мәлімет\n\nІздеу кезінде қате шықты, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
@@ -240,27 +255,37 @@ ${info.slice(0, 3000)}`;
       /* 4. Тексеру: үзілсе — жалғастыру */
       cur = "verify";
       setStep("verify", "active", "");
-      let tries = 0;
-      while (!complete(code) && tries < 4) {
-        tries++;
-        setStep("verify", "active", `Жалғастыру ${tries}/4`);
-        const tail = code.slice(-1500);
+      // 4а. үзілген болса жалғастыру
+      code = await ensureComplete(code, sig, (t) => setStep("verify", "active", t), paint);
+      S.data.files.html = code; addFileRow("html");
+
+      // 4б. іске қосып тексеру → қате болса QWQ-ге түзеттіру (ең көбі 3 рет)
+      const errBox = $("#errs");
+      let best = { code, errs: null }, fixes = 0;
+      for (;;) {
+        setStep("verify", "active", fixes ? "Қайта тексеріп жатыр…" : "Іске қосып тексеріп жатыр…");
+        const { errors } = await Q.check.run(code);
+        if (best.errs === null || errors.length <= best.errs.length) best = { code, errs: errors };
+        if (!errors.length) break;
+        setStep("verify", "active", `${errors.length} қате табылды`);
+        if (errBox) { errBox.hidden = R.hide; errBox.textContent = errors.slice(0, 4).map((x) => "• " + x.slice(0, 130)).join("\n"); }
+        if (fixes >= 3) break;
+        fixes++;
+        await Q.sleep(1100);
+        setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
         const r = await Q.api.chat({
           signal: sig, web: false, stream: true,
-          message: `Төмендегі HTML коды жауап ұзындығына байланысты үзіліп қалды. Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, түсініктеме қоспа, \`\`\` белгісін қоспа. Код </html> тегімен аяқталсын.\n\nСоңғы бөлік:\n${tail}`,
-          onDelta: (_, full) => paint(code + full),
+          message: `Төмендегі HTML қосымшаны іске қосқанда мына қателер табылды:\n${errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет, толық файлды қайтар. Басқа жерін бұзба, интерфейс қазақша қалсын. Жауапта ТЕК толық түзетілген index.html кодын бір \`\`\`html блогымен бер.\n\n\`\`\`html\n${code}\n\`\`\``,
+          onDelta: (_, full) => paint(full),
         });
-        const piece = dedupe(code, stripFence(r.answer.replace(/^\s*```[a-zA-Z]*\s*\n?/, "")));
-        code = (code + piece).trim();
-        code = code.toLowerCase().includes("</html>") ? code.slice(0, code.toLowerCase().lastIndexOf("</html>") + 7) : code;
+        code = extractHtml(r.answer);
+        code = await ensureComplete(code, sig, (t) => setStep("verify", "active", t), paint);
         S.data.files.html = code; addFileRow("html");
       }
-      let warn = "";
-      if (!complete(code)) { code += "\n</script></body></html>"; S.data.files.html = code; warn = "Код толық аяқталмады, қолмен жабылды"; }
-      const jsErr = checkJS(code);
-      if (jsErr) warn = (warn ? warn + ". " : "") + "JS ескертуі: " + jsErr.slice(0, 70);
-      addFileRow("html");
-      setStep("verify", warn ? "warn" : "done", warn || (tries ? `Жалғастырылды ×${tries}` : ""));
+      if (errBox) errBox.hidden = true;
+      code = best.code; S.data.files.html = code; addFileRow("html");
+      const left = best.errs || [];
+      setStep("verify", left.length ? "warn" : "done", left.length ? "Кей жерлері жұмыс істемеуі мүмкін" : fixes ? `Қате жоқ ✓ (${fixes} түзету)` : "Қате жоқ ✓");
 
       /* 5. Дайын */
       cur = "done";

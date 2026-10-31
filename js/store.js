@@ -12,6 +12,15 @@
     set base(v) { v && v.trim() !== DEF_BASE ? set("qwq.base", v.trim()) : del("qwq.base"); },
     get uid() { let u = get("qwq.uid"); if (!u) { u = "u" + Math.random().toString(36).slice(2, 10); set("qwq.uid", u); } return u; },
     DEF_BASE,
+    // күн сайынғы сұрау санағыш (Worker лимит туралы ақпарат қайтармайды)
+    usage: {
+      day() { return new Date().toLocaleDateString("sv"); },
+      get limit() { return Math.max(1, parseInt(get("qwq.limit"), 10) || 100); },
+      set limit(v) { set("qwq.limit", String(Math.max(1, parseInt(v, 10) || 100))); },
+      get used() { try { const u = JSON.parse(get("qwq.usage") || "{}"); return u.d === this.day() ? u.n | 0 : 0; } catch (e) { return 0; } },
+      inc() { set("qwq.usage", JSON.stringify({ d: this.day(), n: this.used + 1 })); },
+      get left() { return Math.max(0, this.limit - this.used); },
+    },
     // жоба күйі
     data: { messages: [], idea: null, files: {}, versions: [], seen: { code: true, result: true } },
     load() {

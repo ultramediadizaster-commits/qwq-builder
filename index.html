@@ -128,9 +128,14 @@
     <label class="field"><span>Сервер</span>
       <input class="input" id="set-base" type="url" spellcheck="false">
     </label>
+    <div class="field" id="limit-box" hidden>
+      <span id="limit-t"></span>
+      <input class="input" id="set-limit-n" type="number" min="1" inputmode="numeric" aria-label="Күндік лимит">
+    </div>
     <div class="row">
       <button class="btn btn--primary glass" id="set-test" type="button">Тексеру</button>
       <button class="btn glass glass--flat" id="set-save" type="button">Сақтау</button>
+      <button class="btn glass glass--flat" id="set-limit" type="button">Лимит</button>
       <button class="btn glass glass--flat" id="set-demo" type="button">Демо</button>
       <button class="btn glass glass--flat btn--danger" id="set-clear" type="button"><svg class="ico ico--sm"><use href="#i-trash"/></svg>Тазалау</button>
     </div>
@@ -144,6 +149,7 @@
 <script src="js/ui.js"></script>
 <script src="js/store.js"></script>
 <script src="js/api.js"></script>
+<script src="js/check.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/result.js"></script>

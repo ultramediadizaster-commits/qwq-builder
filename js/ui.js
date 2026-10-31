@@ -39,6 +39,39 @@ window.QWQ = window.QWQ || {};
     } catch (e) { return esc(text); }
   }
 
+  /* ---- Көшіру: белгіше бір сәтке ✓ болады ---- */
+  async function copyText(text, btn) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; }
+    catch (e) {
+      const t = document.createElement("textarea");
+      t.value = text; t.style.cssText = "position:fixed;opacity:0;top:0"; document.body.appendChild(t); t.select();
+      try { ok = document.execCommand("copy"); } catch (x) {}
+      t.remove();
+    }
+    if (!ok) { toast("Көшіру мүмкін болмады", "err", 3000); return; }
+    if (btn) {
+      if (!btn.dataset.o) btn.dataset.o = btn.innerHTML;
+      btn.innerHTML = ic("check", "ico ico--sm"); btn.classList.add("done");
+      clearTimeout(btn._t);
+      btn._t = setTimeout(() => { btn.innerHTML = btn.dataset.o; btn.classList.remove("done"); }, 1400);
+    }
+  }
+  /** Markdown ішіндегі әр код блогының бұрышына көшіру батырмасын қою */
+  function enhance(root) {
+    root.querySelectorAll("pre").forEach((p) => {
+      if (p.querySelector(".cp-code")) return;
+      const b = el("button", { class: "cp cp-code", type: "button", "aria-label": "Көшіру" }, ic("copy", "ico ico--sm"));
+      p.appendChild(b);
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest(".cp-code");
+    if (!b) return;
+    const pre = b.closest("pre");
+    copyText((pre.querySelector("code") || pre).textContent, b);
+  });
+
   /* ---- Toast ---- */
   function toast(msg, kind = "err", ms = 6000) {
     const box = $("#toasts");
@@ -92,9 +125,13 @@ window.QWQ = window.QWQ || {};
 
   /* ---- Ойнатқыш: жазылып жатқан мәтінді бір кадрда жаңарту ---- */
   function throttleRaf(fn) {
-    let pend = false;
-    return (...a) => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; fn(...a); }); };
+    let pend = false, last = [];
+    const run = () => { if (!pend) return; pend = false; fn(...last); };
+    // әрқашан ең соңғы аргументтермен орындалады
+    const t = (...a) => { last = a; if (pend) return; pend = true; requestAnimationFrame(run); };
+    t.cancel = () => { pend = false; last = []; };
+    return t;
   }
 
-  Object.assign(Q, { $, $$, sleep, ic, esc, el, fmtSize, byteLen, fmtTime, md, toast, throttleRaf, coarse });
+  Object.assign(Q, { $, $$, sleep, ic, esc, el, fmtSize, byteLen, fmtTime, md, toast, throttleRaf, coarse, copyText, enhance });
 })(window.QWQ);

@@ -58,7 +58,7 @@
 .keywarn{margin-top:18px;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:var(--r-md);text-align:left;font-size:14px;color:var(--text-2)}
 
 .msgs{display:flex;flex-direction:column;gap:14px;padding-top:6px}
-.msg{max-width:92%;padding:13px 17px;border-radius:24px;word-wrap:break-word;overflow-wrap:anywhere;animation:msgIn .5s var(--spring) both}
+.msg{max-width:92%;padding:14px 18px;border-radius:24px;word-wrap:break-word;overflow-wrap:anywhere;animation:msgIn .5s var(--spring) both}
 .msg--user{align-self:flex-end;border-bottom-right-radius:8px;font-size:16px;white-space:pre-wrap}
 .msg--ai{align-self:flex-start;border-bottom-left-radius:8px;max-width:100%;width:fit-content;min-width:56px}
 @keyframes msgIn{from{opacity:0;transform:translateY(14px) scale(.96)}}
@@ -69,17 +69,33 @@
 .make-row{display:flex;justify-content:center;padding:6px 0 4px;animation:msgIn .6s var(--spring) both}
 
 /* markdown */
-.md{font-size:15.5px;line-height:1.62}
-.md>*:first-child{margin-top:0}.md>*:last-child{margin-bottom:0}
-.md p{margin:.55em 0}.md ul,.md ol{margin:.55em 0;padding-left:1.35em}.md li{margin:.2em 0}
-.md h1,.md h2,.md h3{margin:1em 0 .4em;line-height:1.25;letter-spacing:-.02em}.md h1{font-size:1.35em}.md h2{font-size:1.2em}.md h3{font-size:1.08em}
+.md{font-size:16px;line-height:1.72;color:rgba(255,255,255,.94)}
+.md>*:first-child{margin-top:0!important}.md>*:last-child{margin-bottom:0!important}
+.md p{margin:0 0 1em}
+.md ul,.md ol{margin:0 0 1em;padding-left:1.5em}
+.md li{margin:.4em 0;padding-left:.15em}.md li::marker{color:var(--cyan)}
+.md li>p{margin:.3em 0}.md li>ul,.md li>ol{margin:.35em 0 .2em}
+.md strong{font-weight:650;color:#fff}
+.md h1,.md h2,.md h3,.md h4{margin:1.5em 0 .55em;line-height:1.28;letter-spacing:-.02em;font-weight:700}
+.md h1{font-size:1.4em}.md h2{font-size:1.24em}.md h3{font-size:1.1em}.md h4{font-size:1em}
 .md a{color:var(--cyan);text-underline-offset:3px}
-.md code{font-family:var(--mono);font-size:.88em;padding:.12em .42em;border-radius:7px;background:rgba(255,255,255,.12)}
-.md pre{margin:.7em 0;padding:14px;border-radius:14px;background:rgba(0,0,0,.55);overflow-x:auto;border:1px solid rgba(255,255,255,.08)}
-.md pre code{padding:0;background:none;font-size:13px}
-.md blockquote{margin:.6em 0;padding:.1em 0 .1em 14px;border-left:3px solid rgba(90,200,250,.6);color:var(--text-2)}
-.md table{border-collapse:collapse;display:block;overflow-x:auto;margin:.7em 0}.md th,.md td{padding:7px 12px;border:1px solid rgba(255,255,255,.14)}
-.md hr{border:0;height:1px;background:rgba(255,255,255,.16);margin:1em 0}
+.md code{font-family:var(--mono);font-size:.86em;padding:.15em .45em;border-radius:7px;background:rgba(255,255,255,.12)}
+.md pre{position:relative;margin:0 0 1.1em;padding:16px 16px 14px;border-radius:16px;background:rgba(0,0,0,.6);overflow-x:auto;border:1px solid rgba(255,255,255,.1);line-height:1.6}
+.md pre code{padding:0;background:none;font-size:13px;display:block;padding-right:34px}
+.md blockquote{margin:0 0 1em;padding:.2em 0 .2em 16px;border-left:3px solid rgba(90,200,250,.6);color:var(--text-2)}
+.md table{border-collapse:collapse;display:block;overflow-x:auto;margin:0 0 1em}.md th,.md td{padding:8px 13px;border:1px solid rgba(255,255,255,.14);text-align:left}
+.md th{background:rgba(255,255,255,.07)}
+.md hr{border:0;height:1px;background:rgba(255,255,255,.16);margin:1.4em 0}
+
+/* көшіру белгішелері */
+.cp{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;color:var(--text-3);transition:color .2s,background .2s,transform .5s var(--spring)}
+.cp:hover{color:#fff;background:rgba(255,255,255,.1)}
+.cp:active{transform:scale(.85)}
+.cp.done{color:var(--green)}
+.cp-code{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.08);z-index:2}
+.acts{display:flex;margin-top:-8px;padding:0 6px}
+.acts--user{align-self:flex-end}.acts--ai{align-self:flex-start}
+.errs{margin:12px 0 0;padding:12px 14px;border-radius:var(--r-md);background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.32);font-family:var(--mono);font-size:12.5px;line-height:1.55;color:#ffb8b2;white-space:pre-wrap;overflow-wrap:anywhere;animation:msgIn .4s var(--spring) both}
 
 /* ---- Код көрінісі ---- */
 .stack{display:flex;flex-direction:column;gap:16px}
@@ -160,10 +176,11 @@
 .busy small{color:var(--text-2);font-family:var(--mono);font-weight:500}
 
 /* ---- Баптаулар (sheet) ---- */
-.scrim{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.scrim{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
 .scrim.on{opacity:1;pointer-events:auto}
 .sheet{width:min(100%,520px);max-height:92dvh;overflow:auto;padding:22px 20px calc(var(--safe-b) + 22px);border-radius:var(--r-xl) var(--r-xl) 0 0;transform:translateY(40px) scale(.97);transition:transform .6s var(--spring)}
 .scrim.on .sheet{transform:none}
+.sheet.glass--dark{background:linear-gradient(145deg,rgba(26,28,40,.92),rgba(10,11,16,.95))}
 .sheet h2{margin:0 0 4px;font-size:22px;letter-spacing:-.025em}
 .sheet .sub{margin:0 0 18px;color:var(--text-2);font-size:14px}
 .field{display:block;margin-bottom:16px}
