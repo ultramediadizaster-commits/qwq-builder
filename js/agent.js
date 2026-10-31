@@ -5,11 +5,11 @@
   const root = () => $("#code-root");
 
   const STEPS = [
-    { k: "plan", t: "Жоспар құру", i: "list", d: "Идеяны экрандар мен функцияларға бөледі" },
-    { k: "search", t: "Интернеттен іздеу", i: "globe", d: "Тақырып бойынша мәлімет жинайды" },
-    { k: "code", t: "Кодты жазу", i: "code", d: "index.html көз алдыңда жазылады" },
-    { k: "verify", t: "Тексеру", i: "shield", d: "Код толық па, соны қарайды" },
-    { k: "done", t: "Дайын", i: "flag", d: "Қосымша ашылуға дайын" },
+    { k: "plan", t: "Жоспар құру", i: "list", d: "" },
+    { k: "search", t: "Интернеттен іздеу", i: "globe", d: "" },
+    { k: "code", t: "Кодты жазу", i: "code", d: "" },
+    { k: "verify", t: "Тексеру", i: "shield", d: "" },
+    { k: "done", t: "Дайын", i: "flag", d: "" },
   ];
   const FILES = { plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" }, html: { name: "index.html", i: "code" } };
 
@@ -20,14 +20,13 @@
     const c = root();
     const idea = S.data.idea;
     if (!idea) {
-      c.innerHTML = `<div class="card glass empty"><h3>Әзірге идея жоқ</h3><p>Алдымен чатта идеяңды талқыла, сосын «Осыдан қосымша жасау» батырмасын бас.</p><button class="btn btn--primary glass" type="button" id="go-chat">${ic("chat")}Чатқа өту</button></div>`;
+      c.innerHTML = `<div class="card glass empty"><h3>Идея жоқ</h3><button class="btn btn--primary glass" type="button" id="go-chat">${ic("chat")}Чатқа өту</button></div>`;
       $("#go-chat").onclick = () => Q.go("chat");
       return;
     }
     const hasHtml = !!S.data.files.html;
     c.innerHTML = `
       <article class="card glass">
-        <div class="eyebrow">Идея</div>
         <h2>${esc(idea.title)}</h2>
         <p class="sum">${esc(idea.summary)}</p>
         <button class="toggle-prompt" type="button" id="tp" aria-expanded="false" aria-controls="pbox">Толық промпт ${ic("chev", "ico ico--sm")}</button>
@@ -79,7 +78,7 @@
       if (!anim) b.style.animation = "none";
       R.ui.files.appendChild(b);
     }
-    b.innerHTML = `<span class="fi">${ic(f.i, "ico ico--sm")}</span><span><b>${f.name}</b><small>${k === "html" ? "Қосымша коды" : k === "plan" ? "Әзірлеу жоспары" : "Интернеттен жиналған мәлімет"}</small></span><span class="sz">${fmtSize(byteLen(txt))}</span>`;
+    b.innerHTML = `<span class="fi">${ic(f.i, "ico ico--sm")}</span><span><b>${f.name}</b></span><span class="sz">${fmtSize(byteLen(txt))}</span>`;
   }
   function openFile(k) {
     if (R.open === k) { R.open = null; R.ui.viewer.hidden = true; $$files(); return; }
@@ -118,7 +117,7 @@
     R.ui.live.hidden = R.hide || R.ui.live.dataset.on !== "1";
     R.ui.viewer.hidden = R.hide || !R.open;
     setRunUI(true);
-    if (R.hide) toast("Код жасырылды. Дайын болғанда нәтиже өзі ашылады.", "ok", 3500);
+    if (R.hide) toast("Дайын болғанда ашылады.", "ok", 2500);
     if (has && R.hide) Q.go("result");
   }
 
@@ -160,7 +159,7 @@
   async function run() {
     const idea = S.data.idea;
     if (!idea || R.active) return;
-    if (!S.key && !(Q.demo && Q.demo.active)) { toast("Алдымен API кілтін енгіз.", "err"); Q.openSettings(); return; }
+    if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
     R.active = true; R.hide = false; R.auto = false; R.open = null; R.stepT = {};
     R.ctrl = new AbortController();
     S.data.files = {}; S.data.versions = [];
@@ -175,18 +174,18 @@
     let cur = "plan";
     try {
       /* 1. Жоспар */
-      setStep("plan", "active", "Жоспар жазылып жатыр…");
+      setStep("plan", "active", "");
       const p = await Q.api.chat({
         signal: sig, web: false, stream: true,
         message: `Сен тәжірибелі веб-әзірлеушісің. Мына қосымша үшін қысқа әзірлеу жоспарын жаса.\n\n${brief(idea)}\n\nЖауапты қазақша, Markdown пішімінде бер, 30 жолдан аспасын. Бөлімдер: ## Мақсат, ## Экрандар, ## Негізгі функциялар, ## Деректер (localStorage), ## Дизайн (түстер, көңіл-күй). Код жазба.`,
         onDelta: throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`)),
       });
       S.data.files.plan = p.answer; addFileRow("plan");
-      setStep("plan", "done", "Жоспар дайын");
+      setStep("plan", "done", "");
 
       /* 2. Интернеттен іздеу (QWQ web:true) */
       cur = "search";
-      setStep("search", "active", "Интернеттен іздеп жатыр…");
+      setStep("search", "active", "");
       let info = "";
       try {
         const r = await Q.api.chat({
@@ -196,16 +195,16 @@
         const src = (r.sources || []).map((s) => (typeof s === "string" ? s : s.url ? `[${s.title || s.url}](${s.url})` : s.title || "")).filter(Boolean);
         info = `# Жиналған мәлімет\n\n${r.answer}\n` + (src.length ? `\n## Дереккөздер\n${src.map((x) => "- " + x).join("\n")}\n` : "");
         S.data.files.info = info; addFileRow("info");
-        setStep("search", "done", src.length ? `${src.length} дереккөз табылды` : "Мәлімет жиналды");
+        setStep("search", "done", src.length ? `${src.length} дереккөз` : "");
       } catch (e) {
         if (e.code === "abort") throw e;
         S.data.files.info = "# Жиналған мәлімет\n\nІздеу кезінде қате шықты, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
-        setStep("search", "warn", "Іздеу қолжетімсіз, жалғастырамыз");
+        setStep("search", "warn", "Іздеу қолжетімсіз");
       }
 
       /* 3. Код жазу (stream) */
       cur = "code";
-      setStep("code", "active", "Код жазылып жатыр…");
+      setStep("code", "active", "");
       R.ui.live.dataset.on = "1"; R.ui.live.hidden = R.hide;
       const paint = throttleRaf((full) => {
         if (!R.ui.liveCode) return;
@@ -240,11 +239,11 @@ ${info.slice(0, 3000)}`;
 
       /* 4. Тексеру: үзілсе — жалғастыру */
       cur = "verify";
-      setStep("verify", "active", "Код толық па, тексеріп жатыр…");
+      setStep("verify", "active", "");
       let tries = 0;
       while (!complete(code) && tries < 4) {
         tries++;
-        setStep("verify", "active", `Код үзілген, жалғасын сұрап жатыр (${tries}/4)…`);
+        setStep("verify", "active", `Жалғастыру ${tries}/4`);
         const tail = code.slice(-1500);
         const r = await Q.api.chat({
           signal: sig, web: false, stream: true,
@@ -261,20 +260,20 @@ ${info.slice(0, 3000)}`;
       const jsErr = checkJS(code);
       if (jsErr) warn = (warn ? warn + ". " : "") + "JS ескертуі: " + jsErr.slice(0, 70);
       addFileRow("html");
-      setStep("verify", warn ? "warn" : "done", warn || (tries ? `Үзілген жері жалғастырылды (${tries} рет)` : "Код толық, жарамды"));
+      setStep("verify", warn ? "warn" : "done", warn || (tries ? `Жалғастырылды ×${tries}` : ""));
 
       /* 5. Дайын */
       cur = "done";
       S.data.versions = [{ html: code, note: "Бастапқы нұсқа" }];
       S.save();
-      setStep("done", "done", "Қосымша ашылуға дайын!");
+      setStep("done", "done", "");
       R.ui.live.hidden = true;
       R.ui.liveCode.classList.remove("caret");
       Q.result.refresh(true);
       const dot = $("#dot-result"); if (Q.view !== "result") dot.hidden = false;
-      if (R.auto) Q.go("result"); else toast("Қосымша дайын! «Нәтиже» бөлімінде көр.", "ok", 5000);
+      if (R.auto) Q.go("result"); else toast("Дайын!", "ok", 3500);
     } catch (e) {
-      if (e.code === "abort") toast("Агент тоқтатылды.", "ok", 3000);
+      if (e.code === "abort") toast("Тоқтатылды.", "ok", 2000);
       else toast(e.message || "Агент жұмысын аяқтай алмады. Қайта байқап көр.", "err", 8000);
       const li = R.ui.steps && R.ui.steps.querySelector(`[data-k="${cur}"]`);
       if (li) { li.classList.remove("active"); li.querySelector(".s-d").textContent = e.code === "abort" ? "Тоқтатылды" : "Қате шықты"; li.querySelector(".s-ic").innerHTML = ic(STEPS.find((x) => x.k === cur).i, "ico ico--sm"); }

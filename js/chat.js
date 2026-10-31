@@ -2,18 +2,8 @@
 (function (Q) {
   const { $, el, ic, md, toast, throttleRaf } = Q;
   const S = Q.store;
-  const IDEAS = [
-    { i: "book", t: "Қазақша сөз жаттықтырғышы", s: "Карточкалар және мини-тест", p: "Қазақша–ағылшынша сөздерді жаттауға арналған қосымша жасағым келеді: карточкалар, тест және нәтиже статистикасы." },
-    { i: "cal", t: "Студенттің апталық жоспарлаушысы", s: "Сабақ, тапсырма, ескерту", p: "Колледж студентіне арналған апталық жоспарлаушы жасағым келеді: сабақ кестесі, үй тапсырмасы және мерзімі." },
-    { i: "wallet", t: "Шығын есебі", s: "Кіріс-шығыс және диаграмма", p: "Күнделікті шығын мен кірісті жазып, санат бойынша диаграмма көрсететін қосымша жасағым келеді." },
-  ];
-
   let busy = false, ctrl = null;
   const msgsEl = $("#msgs"), input = $("#input"), sendBtn = $("#send");
-
-  function renderIdeas() {
-    $("#ideas").innerHTML = IDEAS.map((x, k) => `<button class="idea glass" type="button" data-k="${k}"><span class="ico-wrap">${ic(x.i)}</span><span><strong>${x.t}</strong><span class="s">${x.s}</span></span></button>`).join("");
-  }
 
   function bubble(role, content) {
     const b = el("div", { class: `msg glass glass--flat ${role === "user" ? "msg--user glass--tint" : "msg--ai"}` });
@@ -62,8 +52,8 @@
   async function send(text) {
     text = (text || "").trim();
     if (!text || busy) return;
-    if (!S.key && !(Q.demo && Q.demo.active)) { toast("Алдымен API кілтін енгіз.", "err"); Q.openSettings(); return; }
-    input.value = ""; fit();
+    if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
+    Q.mic.stop(); input.value = ""; fit();
     const history = S.data.messages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
     S.data.messages.push({ role: "user", content: text });
     $("#hero").hidden = true;
@@ -98,7 +88,7 @@
   async function makeApp() {
     const btn = $("#make");
     if (!btn || btn.disabled) return;
-    btn.disabled = true; btn.innerHTML = `${ic("spark")}Идеяны қорытындылап жатыр…`;
+    btn.disabled = true; btn.innerHTML = `${ic("spark")}Күте тұр…`;
     try {
       const idea = await Q.api.extractIdea(S.data.messages.slice(-20).map((m) => ({ role: m.role, content: m.content })));
       S.data.idea = idea; S.data.files = {}; S.data.versions = [];
@@ -112,8 +102,7 @@
   }
 
   function init() {
-    renderIdeas();
-    $("#ideas").addEventListener("click", (e) => { const b = e.target.closest(".idea"); if (b) send(IDEAS[+b.dataset.k].p); });
+    Q.mic.attach($("#input"), $("#mic"), fit);
     $("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
     sendBtn.addEventListener("click", () => { if (busy && ctrl) ctrl.abort(); });
     input.addEventListener("input", fit);

@@ -10,7 +10,7 @@
   function render() {
     const c = $("#res-root");
     if (!html()) {
-      c.innerHTML = `<div class="card glass empty" style="margin-top:8px"><h3>Нәтиже әзірге жоқ</h3><p>Қосымша дайын болғанда осында ашылады. Идеяны «Код» бөлімінде агентке жібер.</p><button class="btn btn--primary glass" type="button" id="r-go">${ic("code")}Код бөліміне өту</button></div>`;
+      c.innerHTML = `<div class="card glass empty" style="margin-top:8px"><h3>Нәтиже жоқ</h3><button class="btn btn--primary glass" type="button" id="r-go">${ic("code")}Код</button></div>`;
       $("#r-go").onclick = () => Q.go("code");
       if (ro) { ro.disconnect(); ro = null; }
       return;
@@ -30,7 +30,7 @@
         </div>
       </div>
       <div class="stage" id="stage"><div class="frame-box" id="fb"><iframe id="frame" title="Дайын қосымша" sandbox="${SANDBOX}" referrerpolicy="no-referrer"></iframe></div>
-        <div class="busy" id="busy" hidden><div class="ring"></div><div id="busy-t">QWQ кодты өзгертіп жатыр…</div><small id="busy-m"></small><button class="btn btn--sm glass glass--flat" type="button" id="busy-stop">Тоқтату</button></div>
+        <div class="busy" id="busy" hidden><div class="ring"></div><div id="busy-t">Өзгертіп жатыр…</div><small id="busy-m"></small><button class="btn btn--sm glass glass--flat" type="button" id="busy-stop">Тоқтату</button></div>
       </div>`;
     ui = { stage: $("#stage"), fb: $("#fb"), frame: $("#frame"), ind: $("#seg-ind"), busy: $("#busy") };
     ui.frame.srcdoc = html();
@@ -75,9 +75,10 @@
   async function tweak(text) {
     text = text.trim();
     if (!text || busy || !html()) return;
-    if (!S.key && !(Q.demo && Q.demo.active)) { toast("Алдымен API кілтін енгіз.", "err"); Q.openSettings(); return; }
+    if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
+    Q.mic.stop();
     busy = true; ctrl = new AbortController();
-    if (ui.busy) { ui.busy.hidden = false; $("#busy-t").textContent = "QWQ кодты өзгертіп жатыр…"; }
+    if (ui.busy) { ui.busy.hidden = false; $("#busy-t").textContent = "Өзгертіп жатыр…"; }
     const setM = throttleRaf((n) => { const m = $("#busy-m"); if (m) m.textContent = `жазылды: ${fmtSize(n)}`; });
     const sig = ctrl.signal;
     try {
@@ -103,7 +104,7 @@
       S.data.versions = S.data.versions.slice(-6);
       S.data.files.html = code; S.save();
       ui.frame.srcdoc = code; undoState();
-      toast("Өзгеріс қолданылды.", "ok", 3000);
+      toast("Дайын", "ok", 2000);
       const f = $("#tweak"); if (f) f.value = "";
     } catch (e) {
       if (e.code === "abort") toast("Өзгерту тоқтатылды.", "ok", 3000);
@@ -155,6 +156,7 @@
     const t = $("#tweak");
     const fitT = () => { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 132) + "px"; };
     t.addEventListener("input", fitT);
+    Q.mic.attach(t, $("#tweak-mic"), fitT);
     t.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !Q.coarse && !e.isComposing) { e.preventDefault(); tweak(t.value); } });
     render();
   }

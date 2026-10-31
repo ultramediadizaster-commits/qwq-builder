@@ -36,6 +36,7 @@
   const sc = $("#settings");
   function openSettings() {
     $("#set-key").value = S.key; $("#set-base").value = S.base;
+    $("#set-demo").textContent = Q.demo.active ? "Демоны өшіру" : "Демо";
     sc.classList.add("on");
     setTimeout(() => $("#set-key").focus(), 250);
   }
@@ -50,11 +51,11 @@
 
   async function test() {
     if (!save()) return;
-    if (!S.key) { toast("Алдымен кілтті енгіз.", "err"); return; }
-    const b = $("#set-test"); b.disabled = true; const old = b.textContent; b.textContent = "Тексеріп жатыр…";
+    if (!S.key) { toast("API кілті керек.", "err"); return; }
+    const b = $("#set-test"); b.disabled = true; const old = b.textContent; b.textContent = "…";
     try {
       const r = await Q.api.chat({ message: "Сәлем! Бір сөзбен жауап бер.", history: [], web: false, stream: false });
-      toast("Қосылым жұмыс істейді ✓ Жауап: " + r.answer.slice(0, 60), "ok", 4500);
+      toast("Қосылды", "ok", 3000);
     } catch (e) { toast(e.message, "err", 8000); }
     b.disabled = false; b.textContent = old;
   }
@@ -63,12 +64,17 @@
     S.load();
     $("#btn-settings").onclick = openSettings;
     $("#status").onclick = openSettings;
-    $("#set-save").onclick = () => { if (save()) { closeSettings(); toast("Сақталды.", "ok", 2000); } };
+    $("#set-save").onclick = () => { if (save()) { closeSettings(); toast("Сақталды", "ok", 1800); } };
     $("#set-test").onclick = test;
+    $("#set-demo").onclick = () => {
+      const on = !Q.demo.active;
+      Q.demo.set(on); closeSettings();
+      if (on) Q.demo.play(); else toast("Демо өшірулі", "ok", 1800);
+    };
     $("#set-eye").onclick = () => { const i = $("#set-key"); i.type = i.type === "password" ? "text" : "password"; };
     $("#set-clear").onclick = () => {
-      if (!confirm("Чат, идея және жасалған қосымша өшіріледі. Жалғастырамыз ба?")) return;
-      S.reset(); Q.chat.renderAll(); Q.code.render(); Q.result.refresh(); closeSettings(); go("chat"); toast("Жоба тазаланды.", "ok", 2500);
+      if (!confirm("Бәрі өшірілсін бе?")) return;
+      S.reset(); Q.chat.renderAll(); Q.code.render(); Q.result.refresh(); closeSettings(); go("chat"); toast("Тазаланды", "ok", 1800);
     };
     sc.addEventListener("click", (e) => { if (e.target === sc) closeSettings(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sc.classList.contains("on")) closeSettings(); });

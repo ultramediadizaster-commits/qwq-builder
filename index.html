@@ -47,6 +47,7 @@
     <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="3" y="8" width="18" height="12" rx="2.8"/><circle cx="16.5" cy="14" r="1.1"/></symbol>
     <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
   </defs>
 </svg>
@@ -67,11 +68,9 @@
   <section class="view on" id="view-chat" aria-label="Чат">
     <div class="col">
       <div class="hero" id="hero">
-        <h1>Идеяңды айт,<br>қосымшаны <em>QWQ</em> жасайды</h1>
-        <p>Жасанды интеллектпен сөйлесіп идеяңды талқыла. Агент оны жұмыс істейтін веб-қосымшаға айналдырады.</p>
-        <div class="ideas" id="ideas"></div>
+        <h1>Идеяңды <em>айт</em></h1>
         <div class="keywarn glass glass--flat" id="keywarn" hidden>
-          <span>Бастау үшін QWQ API кілтін баптаулардан енгіз.</span>
+          <span>API кілті керек</span>
           <button class="btn btn--sm btn--primary glass" type="button" data-open-settings>Енгізу</button>
         </div>
       </div>
@@ -94,12 +93,14 @@
     <div class="dock" id="dock-chat">
       <form class="composer glass lens" id="composer" autocomplete="off">
         <textarea id="input" rows="1" placeholder="Идеяңды жаз…" aria-label="Хабарлама" enterkeyhint="send"></textarea>
+        <button class="btn btn--icon mic glass glass--flat" id="mic" type="button" aria-label="Микрофон" aria-pressed="false" hidden><svg class="ico"><use href="#i-mic"/></svg></button>
         <button class="btn btn--icon btn--primary glass" id="send" type="submit" aria-label="Жіберу"><svg class="ico"><use href="#i-send"/></svg></button>
       </form>
     </div>
     <div class="dock" id="dock-tweak" hidden>
       <form class="composer glass lens" id="tweak-form" autocomplete="off">
-        <textarea id="tweak" rows="1" placeholder="Мысалы: түсін көкке өзгерт…" aria-label="Өзгерту сұрауы" enterkeyhint="send"></textarea>
+        <textarea id="tweak" rows="1" placeholder="Не өзгертейік?" aria-label="Өзгерту сұрауы" enterkeyhint="send"></textarea>
+        <button class="btn btn--icon mic glass glass--flat" id="tweak-mic" type="button" aria-label="Микрофон" aria-pressed="false" hidden><svg class="ico"><use href="#i-mic"/></svg></button>
         <button class="btn btn--icon btn--primary glass" id="tweak-send" type="submit" aria-label="Өзгерту"><svg class="ico"><use href="#i-spark"/></svg></button>
       </form>
     </div>
@@ -118,21 +119,20 @@
 <div class="scrim" id="settings" role="dialog" aria-modal="true" aria-labelledby="set-title">
   <div class="sheet glass glass--dark">
     <h2 id="set-title">Баптаулар</h2>
-    <p class="sub">Кілт тек осы құрылғының браузерінде (localStorage) сақталады.</p>
-    <label class="field"><span>QWQ API кілті</span>
+    <label class="field" style="margin-top:16px"><span>API кілті</span>
       <div class="input-row">
-        <input class="input" id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="Кілтті осында қой">
+        <input class="input" id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="qwq_…">
         <button class="btn btn--icon glass glass--flat" id="set-eye" type="button" aria-label="Кілтті көрсету" style="--h:48px"><svg class="ico"><use href="#i-eye"/></svg></button>
       </div>
     </label>
-    <label class="field"><span>Сервер мекенжайы</span>
+    <label class="field"><span>Сервер</span>
       <input class="input" id="set-base" type="url" spellcheck="false">
-      <div class="hint">Әдетте өзгертудің қажеті жоқ.</div>
     </label>
     <div class="row">
-      <button class="btn btn--primary glass" id="set-test" type="button">Қосылымды тексеру</button>
+      <button class="btn btn--primary glass" id="set-test" type="button">Тексеру</button>
       <button class="btn glass glass--flat" id="set-save" type="button">Сақтау</button>
-      <button class="btn glass glass--flat btn--danger" id="set-clear" type="button"><svg class="ico ico--sm"><use href="#i-trash"/></svg>Жобаны тазалау</button>
+      <button class="btn glass glass--flat" id="set-demo" type="button">Демо</button>
+      <button class="btn glass glass--flat btn--danger" id="set-clear" type="button"><svg class="ico ico--sm"><use href="#i-trash"/></svg>Тазалау</button>
     </div>
   </div>
 </div>
@@ -147,6 +147,8 @@
 <script src="js/chat.js"></script>
 <script src="js/agent.js"></script>
 <script src="js/result.js"></script>
+<script src="js/mic.js"></script>
+<script src="js/demo.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
