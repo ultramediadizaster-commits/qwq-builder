@@ -33,7 +33,7 @@
         <div class="busy" id="busy" hidden><div class="ring"></div><div id="busy-t">Өзгертіп жатыр…</div><small id="busy-m"></small><button class="btn btn--sm glass glass--flat" type="button" id="busy-stop">Тоқтату</button></div>
       </div>`;
     ui = { stage: $("#stage"), fb: $("#fb"), frame: $("#frame"), ind: $("#seg-ind"), busy: $("#busy") };
-    ui.frame.srcdoc = html();
+    ui.frame.srcdoc = Q.check.preview(html());
     $$seg().forEach((b) => (b.onclick = () => { mode = b.dataset.m; $$seg().forEach((x) => x.setAttribute("aria-selected", x === b)); fit(); }));
     $("#t-undo").onclick = undo;
     $("#t-html").onclick = dlHtml;
@@ -103,7 +103,7 @@
       S.data.versions.push({ html: code, note: text });
       S.data.versions = S.data.versions.slice(-6);
       S.data.files.html = code; S.save();
-      ui.frame.srcdoc = code; undoState();
+      ui.frame.srcdoc = Q.check.preview(code); undoState();
       toast("Дайын", "ok", 2000);
       const f = $("#tweak"); if (f) f.value = "";
     } catch (e) {
@@ -118,7 +118,7 @@
     if (S.data.versions.length < 2) return;
     S.data.versions.pop();
     S.data.files.html = S.data.versions[S.data.versions.length - 1].html;
-    S.save(); ui.frame.srcdoc = html(); undoState();
+    S.save(); ui.frame.srcdoc = Q.check.preview(html()); undoState();
     toast("Алдыңғы нұсқаға оралды.", "ok", 2500);
   }
 
@@ -145,7 +145,7 @@
     // iframe-sandbox: жасалған код біздің localStorage (кілт) мәліметіне қол жеткізбейді
     const w = window.open("", "_blank");
     if (!w) { toast("Браузер жаңа терезені бұғаттады. Попап рұқсатын қосып, қайта бас.", "err"); return; }
-    const esc = html().replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    const esc = Q.check.preview(html()).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     w.document.write(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${Q.esc(S.data.idea?.title || "Қосымша")}</title><style>html,body{margin:0;height:100%;background:#000}iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff}</style><iframe sandbox="${SANDBOX}" srcdoc="${esc}"></iframe>`);
     w.document.close();
   }

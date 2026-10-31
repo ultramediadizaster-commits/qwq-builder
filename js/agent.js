@@ -11,7 +11,11 @@
     { k: "verify", t: "Тексеру", i: "shield", d: "" },
     { k: "done", t: "Дайын", i: "flag", d: "" },
   ];
-  const FILES = { plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" }, html: { name: "index.html", i: "code" } };
+  const FILES = {
+    plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" },
+    body: { name: "құрылым.html", i: "code" }, css: { name: "стиль.css", i: "code" }, js: { name: "логика.js", i: "code" },
+    html: { name: "index.html", i: "code" },
+  };
 
   const R = { active: false, ctrl: null, t0: 0, tick: 0, hide: false, auto: false, open: null, ui: {}, stepT: {} };
 
@@ -40,7 +44,7 @@
         <div class="agent-h"><div class="eyebrow">Агент</div><div class="timer" id="timer">00:00.0</div></div>
         <ol class="steps" id="steps">${STEPS.map((s) => `<li class="step${hasHtml ? " done" : ""}" data-k="${s.k}"><div class="s-ic">${ic(hasHtml ? "check" : s.i, "ico ico--sm")}</div><div><div class="s-t">${s.t}</div><div class="s-d">${hasHtml ? "" : s.d}</div></div><div class="s-time"></div></li>`).join("")}</ol>
         <div class="live glass glass--dark glass--flat" id="live" hidden>
-          <div class="live-h"><span>index.html</span><span id="live-m"></span></div>
+          <div class="live-h"><span id="live-name">index.html</span><span id="live-m"></span></div>
           <pre class="codeview caret" id="live-code"></pre>
         </div>
         <pre class="errs" id="errs" hidden></pre>
@@ -53,7 +57,7 @@
         <div class="viewer-bar"><span id="v-name"></span><span style="display:flex;gap:4px"><button class="btn btn--icon btn--sm glass-none" id="v-copy" type="button" aria-label="Көшіру">${ic("copy", "ico ico--sm")}</button><button class="btn btn--icon btn--sm" id="v-close" type="button" aria-label="Жабу">${ic("x", "ico ico--sm")}</button></span></div>
         <pre class="codeview tall" id="v-code"></pre>
       </article>`;
-    const u = R.ui = { steps: $("#steps"), timer: $("#timer"), live: $("#live"), liveCode: $("#live-code"), liveM: $("#live-m"), files: $("#files"), viewer: $("#viewer"), peek: $("#peek"), go: $("#go-agent"), stop: $("#stop-agent"), card: $("#agent-card") };
+    const u = R.ui = { steps: $("#steps"), timer: $("#timer"), live: $("#live"), liveCode: $("#live-code"), liveM: $("#live-m"), liveName: $("#live-name"), files: $("#files"), viewer: $("#viewer"), peek: $("#peek"), go: $("#go-agent"), stop: $("#stop-agent"), card: $("#agent-card") };
     const pb = $("#pbox"); pb.value = idea.prompt;
     pb.oninput = () => { idea.prompt = pb.value; S.save(); };
     $("#tp").onclick = (e) => { const x = e.currentTarget; const o = x.getAttribute("aria-expanded") !== "true"; x.setAttribute("aria-expanded", o); pb.hidden = !o; };
@@ -228,36 +232,23 @@
         R.ui.liveCode.scrollTop = R.ui.liveCode.scrollHeight;
         R.ui.liveM.textContent = `${lines} жол · ${fmtSize(byteLen(full))}`;
       });
-      const codeMsg = `Сен тәжірибелі frontend әзірлеушісің. Төмендегі жоба бойынша ЖҰМЫС ІСТЕЙТІН бір файлдық веб-қосымша жаз.
-
-ТАЛАПТАР:
-- Тек бір толық index.html: CSS пен JS ішінде (<style>, <script>). Сыртқы кітапхана, CDN, сурет сілтемесі ЖОҚ.
-- Интерфейс мәтіндері түгел қазақ тілінде.
-- Mobile-first (390px), содан кейін компьютерге бейімде; көлденең скролл болмасын; <meta name="viewport">.
-- Әдемі заманауи дизайн: қараңғы жұмсақ фон, градиенттер, жұмсақ анимациялар, жеткілікті контраст, батырмалар кемінде 44px.
-- Барлық функция шынымен жұмыс істесін (батырмалар, формалар, есептеу). Деректерді localStorage-та сақта (try/catch ішінде).
-- Қателер мен бос күйлер қазақша түсінікті болсын.
-- Жауапта ТЕК код бол: бір \`\`\`html блогы, алдында да, кейін де түсініктеме жазба. Код </html> тегімен аяқталсын.
-
-ЖОБА:
-${brief(idea)}
-
-ЖОСПАР:
-${(S.data.files.plan || "").slice(0, 3500)}
-
-ҚОСЫМША МӘЛІМЕТ:
-${info.slice(0, 3000)}`;
-      const c = await Q.api.chat({ signal: sig, web: false, stream: true, message: codeMsg, onDelta: (_, full) => paint(full) });
-      let code = extractHtml(c.answer);
+      // үш бөлікпен жазу: HTML құрылымы → CSS → JS, сосын біріктіру
+      const live = (name, full) => {
+        if (R.ui.liveName) R.ui.liveName.textContent = name;
+        paint(full);
+      };
+      let code = await Q.codegen.write({
+        idea, brief: brief(idea), plan: S.data.files.plan || "", info, sig,
+        onPart: (k, label) => { setStep("code", "active", label); },
+        onLive: live,
+        onFile: (k) => addFileRow(k),
+      });
       S.data.files.html = code; addFileRow("html");
       setStep("code", "done", `${code.split("\n").length} жол · ${fmtSize(byteLen(code))}`);
 
-      /* 4. Тексеру: үзілсе — жалғастыру */
+      /* 4. Тексеру */
       cur = "verify";
       setStep("verify", "active", "");
-      // 4а. үзілген болса жалғастыру
-      code = await ensureComplete(code, sig, (t) => setStep("verify", "active", t), paint);
-      S.data.files.html = code; addFileRow("html");
 
       // 4б. іске қосып тексеру → қате болса QWQ-ге түзеттіру (ең көбі 3 рет)
       const errBox = $("#errs");
@@ -273,14 +264,25 @@ ${info.slice(0, 3000)}`;
         fixes++;
         await Q.sleep(1100);
         setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
-        const r = await Q.api.chat({
-          signal: sig, web: false, stream: true,
-          message: `Төмендегі HTML қосымшаны іске қосқанда мына қателер табылды:\n${errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет, толық файлды қайтар. Басқа жерін бұзба, интерфейс қазақша қалсын. Жауапта ТЕК толық түзетілген index.html кодын бір \`\`\`html блогымен бер.\n\n\`\`\`html\n${code}\n\`\`\``,
-          onDelta: (_, full) => paint(full),
-        });
-        code = extractHtml(r.answer);
-        code = await ensureComplete(code, sig, (t) => setStep("verify", "active", t), paint);
-        S.data.files.html = code; addFileRow("html");
+        const F = S.data.files;
+        if (F.body && F.css && F.js) {
+          // бөлікпен жазылған қосымша: тек JS бөлігін түзетеміз
+          const fx = await Q.codegen.fixJs({
+            title: idea.title, body: F.body, css: F.css, js: F.js, errors, sig,
+            onPart: (k, label) => setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`),
+            onLive: live,
+          });
+          if (fx) { F.js = fx.js; addFileRow("js"); code = fx.html; F.html = code; addFileRow("html"); }
+        } else {
+          const r = await Q.api.chat({
+            signal: sig, web: false, stream: true,
+            message: `Төмендегі HTML қосымшаны іске қосқанда мына қателер табылды:\n${errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет, толық файлды қайтар. Басқа жерін бұзба, интерфейс қазақша қалсын. Жауапта ТЕК толық түзетілген index.html кодын бір \`\`\`html блогымен бер.\n\n\`\`\`html\n${code}\n\`\`\``,
+            onDelta: (_, full) => paint(full),
+          });
+          const fixed = await ensureComplete(extractHtml(r.answer), sig, (t) => setStep("verify", "active", t), paint);
+          // QWQ кодты қысқартып жіберсе, түзетуді қабылдамаймыз
+          if (byteLen(fixed) >= 0.6 * byteLen(code)) { code = fixed; F.html = code; addFileRow("html"); }
+        }
       }
       if (errBox) errBox.hidden = true;
       code = best.code; S.data.files.html = code; addFileRow("html");

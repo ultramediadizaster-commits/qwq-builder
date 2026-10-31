@@ -53,6 +53,13 @@ $("no").onclick=function(){if(!q.length)return;again++;q.push(q.shift());show()}
 show();
 </script></body></html>`;
 
+  // дайын қосымшаны 3 бөлікке бөлеміз (агент солай жаздырады)
+  const PARTS = {
+    css: APP.match(/<style>\n([\s\S]*?)<\/style>/)[1].trim(),
+    body: APP.match(/<body>\n([\s\S]*?)<script>/)[1].trim(),
+    js: APP.match(/<script>\n([\s\S]*?)<\/script>/)[1].trim(),
+  };
+
   const IDEA = {
     title: "Сөз жаттықтырғыш",
     summary: "Қазақша сөздерді карточкамен үйрен.",
@@ -78,8 +85,11 @@ show();
       if (/JSON пішімінде/.test(m)) { ans = JSON.stringify(IDEA); o = Object.assign({}, o, { stream: false }); }
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
+      else if (/"find"/.test(m)) ans = '[{"find":"renderStats();","replace":""}]';                  // JS патчы
       else if (/қателер табылды/.test(m)) ans = "```html\n" + APP + "\n```";                       // түзетілген нұсқа
-      else if (/ЖҰМЫС ІСТЕЙТІН/.test(m)) ans = "```html\n" + APP.replace("show();\n</script>", "show();\nrenderStats();\n</script>") + "\n```"; // әдейі 1 қатесі бар нұсқа
+      else if (/Қазір 1\/3/.test(m)) ans = "```html\n" + PARTS.body + "\n<!--END-->\n```";
+      else if (/Қазір 2\/3/.test(m)) ans = "```css\n" + PARTS.css + "\n/*END*/\n```";
+      else if (/Қазір 3\/3/.test(m)) ans = "```js\n" + PARTS.js + "\nrenderStats();\n//END\n```"; // әдейі 1 қатесі бар нұсқа
       else if (/толық коды/.test(m)) {
         const ask = (m.match(/«([^»]+)»/) || [])[1] || "";
         const col = (COLORS.find((c) => ask.toLowerCase().includes(c[0])) || [0, "#ff375f"])[1];

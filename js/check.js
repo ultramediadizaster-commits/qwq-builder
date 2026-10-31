@@ -9,11 +9,20 @@ var ce=console.error;console.error=function(){s("e","console.error: "+[].slice.c
 addEventListener("load",function(){setTimeout(function(){var b=document.body;s("i",JSON.stringify({text:b?(b.innerText||"").trim().length:0,kids:b?b.children.length:0,act:document.querySelectorAll("button,a[href],input,select,textarea,[onclick]").length}))},250)});
 })()<\/script>`;
 
-  function inject(html, id) {
-    const p = probe(id);
+  // sandbox (allow-same-origin жоқ) ішінде localStorage қате шығарады: жадыдағы алмастырғыш
+  const SHIM = `<script>(function(){try{localStorage.getItem("x");return}catch(e){}function mk(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}try{Object.defineProperty(window,"localStorage",{value:mk(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:mk(),configurable:true})}catch(e){}})()<\/script>`;
+
+  function withHead(html, p) {
     if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + p);
     if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => m + "<head>" + p + "</head>");
     return p + html;
+  }
+  /** iframe-де көрсету үшін: localStorage алмастырғышы қосылған HTML (файлдың өзі өзгермейді) */
+  const preview = (html) => withHead(html, SHIM);
+
+  function inject(html, id) {
+    const p = SHIM + probe(id);
+    return withHead(html, p);
   }
 
   /** → Promise<{errors:string[]}> */
@@ -48,5 +57,5 @@ addEventListener("load",function(){setTimeout(function(){var b=document.body;s("
     });
   }
 
-  Q.check = { run };
+  Q.check = { run, preview };
 })(window.QWQ);
