@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<title>QWQ Builder — идеядан қосымшаға</title>
+<meta name="description" content="AI-мен сөйлесіп идеяңды талқыла, QWQ агент жұмыс істейтін веб-қосымшаны өзі жасап береді.">
+<link rel="preload" href="fonts/inter-cyrillic-ext.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/glass.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- SVG: сыну фильтрі + белгішелер -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="lg-refract" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="7" result="n"/>
+      <feGaussianBlur in="n" stdDeviation="1.5" result="nb"/>
+      <feDisplacementMap in="SourceGraphic" in2="nb" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 21l2-5.2A8.4 8.4 0 1 1 21 11.5z"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <symbol id="i-result" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="3.5"/><path d="M10.2 9.2l4.6 2.8-4.6 2.8z"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5.5 11.5L12 5l6.5 6.5"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H16"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 14v3.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 17.5v-9A2.5 2.5 0 0 1 7.5 6H11"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.8"/><path d="M11 18.5h2"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2.5"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.6 3.8 5.6 3.8 9S14.6 18.4 12 21c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".9"/><circle cx="4.5" cy="12" r=".9"/><circle cx="4.5" cy="18" r=".9"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="3" y="8" width="18" height="12" rx="2.8"/><circle cx="16.5" cy="14" r="1.1"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  </defs>
+</svg>
+
+<div class="bg" aria-hidden="true"><i class="orb orb--1"></i><i class="orb orb--2"></i><i class="orb orb--3"></i><i class="orb orb--4"></i></div>
+
+<div class="app">
+
+  <header class="top glass lens">
+    <div class="brand"><i></i>QWQ Builder</div>
+    <div class="top-r">
+      <button class="chip glass glass--flat press" id="status" type="button" aria-label="Қосылым күйі"><b></b><span id="status-t">Кілт жоқ</span></button>
+      <button class="btn btn--icon glass glass--flat" id="btn-settings" type="button" aria-label="Баптаулар" style="--h:42px"><svg class="ico"><use href="#i-settings"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ЧАТ -->
+  <section class="view on" id="view-chat" aria-label="Чат">
+    <div class="col">
+      <div class="hero" id="hero">
+        <h1>Идеяңды айт,<br>қосымшаны <em>QWQ</em> жасайды</h1>
+        <p>Жасанды интеллектпен сөйлесіп идеяңды талқыла. Агент оны жұмыс істейтін веб-қосымшаға айналдырады.</p>
+        <div class="ideas" id="ideas"></div>
+        <div class="keywarn glass glass--flat" id="keywarn" hidden>
+          <span>Бастау үшін QWQ API кілтін баптаулардан енгіз.</span>
+          <button class="btn btn--sm btn--primary glass" type="button" data-open-settings>Енгізу</button>
+        </div>
+      </div>
+      <div class="msgs" id="msgs" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- КОД -->
+  <section class="view" id="view-code" aria-label="Код">
+    <div class="col stack" id="code-root"></div>
+  </section>
+
+  <!-- НӘТИЖЕ -->
+  <section class="view" id="view-result" aria-label="Нәтиже">
+    <div class="col res-wrap" id="res-root"></div>
+  </section>
+
+  <!-- ТӨМЕНГІ ҚАБАТ -->
+  <div class="bottom" id="bottom">
+    <div class="dock" id="dock-chat">
+      <form class="composer glass lens" id="composer" autocomplete="off">
+        <textarea id="input" rows="1" placeholder="Идеяңды жаз…" aria-label="Хабарлама" enterkeyhint="send"></textarea>
+        <button class="btn btn--icon btn--primary glass" id="send" type="submit" aria-label="Жіберу"><svg class="ico"><use href="#i-send"/></svg></button>
+      </form>
+    </div>
+    <div class="dock" id="dock-tweak" hidden>
+      <form class="composer glass lens" id="tweak-form" autocomplete="off">
+        <textarea id="tweak" rows="1" placeholder="Мысалы: түсін көкке өзгерт…" aria-label="Өзгерту сұрауы" enterkeyhint="send"></textarea>
+        <button class="btn btn--icon btn--primary glass" id="tweak-send" type="submit" aria-label="Өзгерту"><svg class="ico"><use href="#i-spark"/></svg></button>
+      </form>
+    </div>
+    <nav class="nav glass lens" id="nav" role="tablist" aria-label="Бөлімдер">
+      <span class="nav-ind" id="nav-ind"></span>
+      <button role="tab" data-view="chat" aria-selected="true"><svg class="ico"><use href="#i-chat"/></svg>Чат</button>
+      <button role="tab" data-view="code" aria-selected="false"><svg class="ico"><use href="#i-code"/></svg>Код<i class="dot" id="dot-code" hidden></i></button>
+      <button role="tab" data-view="result" aria-selected="false"><svg class="ico"><use href="#i-result"/></svg>Нәтиже<i class="dot" id="dot-result" hidden></i></button>
+    </nav>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<!-- БАПТАУЛАР -->
+<div class="scrim" id="settings" role="dialog" aria-modal="true" aria-labelledby="set-title">
+  <div class="sheet glass glass--dark">
+    <h2 id="set-title">Баптаулар</h2>
+    <p class="sub">Кілт тек осы құрылғының браузерінде (localStorage) сақталады.</p>
+    <label class="field"><span>QWQ API кілті</span>
+      <div class="input-row">
+        <input class="input" id="set-key" type="password" autocomplete="off" spellcheck="false" placeholder="Кілтті осында қой">
+        <button class="btn btn--icon glass glass--flat" id="set-eye" type="button" aria-label="Кілтті көрсету" style="--h:48px"><svg class="ico"><use href="#i-eye"/></svg></button>
+      </div>
+    </label>
+    <label class="field"><span>Сервер мекенжайы</span>
+      <input class="input" id="set-base" type="url" spellcheck="false">
+      <div class="hint">Әдетте өзгертудің қажеті жоқ.</div>
+    </label>
+    <div class="row">
+      <button class="btn btn--primary glass" id="set-test" type="button">Қосылымды тексеру</button>
+      <button class="btn glass glass--flat" id="set-save" type="button">Сақтау</button>
+      <button class="btn glass glass--flat btn--danger" id="set-clear" type="button"><svg class="ico ico--sm"><use href="#i-trash"/></svg>Жобаны тазалау</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/store.js"></script>
+<script src="js/api.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/agent.js"></script>
+<script src="js/result.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
