@@ -10,6 +10,7 @@
   <div class="card glow" style="margin-top:14px"><div class="progress"><i id="p"></i></div></div>
   <div class="card" id="card" style="min-height:200px;display:grid;place-items:center;text-align:center;cursor:pointer"><div><h1 id="w">Алма</h1><p class="muted" id="t">Аудару үшін бас</p></div></div>
   <div class="row"><button class="btn grow" id="no">Қайта</button><button class="btn primary grow" id="yes">Білемін</button></div>
+  <button class="btn ghost block" id="share" style="margin-top:12px">Бөлісу</button>
 </section>
 <section class="screen" id="stats"><div class="card"><h2>Нәтиже</h2><div class="list" id="hist"></div><p class="empty" id="empty">Әзірге деректер жоқ</p></div></section>
 <nav class="tabbar"><button class="tab on" data-go="learn">Жаттау</button><button class="tab" data-go="stats">Нәтиже</button></nav>`;
@@ -55,8 +56,9 @@ show();renderHist();`;
       if (/JSON пішімінде/.test(m)) { ans = JSON.stringify(IDEA); o = Object.assign({}, o, { stream: false }); }
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
-      else if (/"find"/.test(m)) ans = '[{"find":"renderStats();","replace":""}]';                  // JS патчы
-      else if (/қателер табылды/.test(m)) ans = ["```js", JS, "```"].join("\n");                       // JS-ті толық қайта жазу
+      else if (/Әр функция толық жасалған ба/.test(m)) ans = '{"ok":true,"problems":[]}';
+      else if (/"find"/.test(m)) ans = JSON.stringify([{ find: "renderStats();", replace: "" }, { append: "$('#share').addEventListener('click', function(){ toast('Сілтеме көшірілді'); });" }]); // JS қатесі + өлі батырма патчы
+      else if (/ақаулар табылды/.test(m)) ans = ["```js", JS, "```"].join("\n");                       // JS-ті толық қайта жазу
       else if (/ЖАУАП ФОРМАТЫ/.test(m)) ans = ["===HTML===", BODY, "===CSS===", "", "===JS===", JS, "renderStats();", "===END==="].join("\n"); // әдейі 1 қатесі бар нұсқа
       else if (/толық коды/.test(m)) {
         const ask = (m.match(/«([^»]+)»/) || [])[1] || "";

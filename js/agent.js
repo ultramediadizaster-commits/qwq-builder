@@ -9,8 +9,8 @@
     { k: "plan", t: "Жоспар құру", i: "list", d: "" },
     { k: "search", t: "Интернеттен іздеу", i: "globe", d: "" },
     { k: "code", t: "Кодты жазу", i: "code", d: "" },
-    { k: "done", t: "Дайын", i: "flag", d: "" },
     { k: "verify", t: "Тексеру", i: "shield", d: "" },
+    { k: "done", t: "Дайын", i: "flag", d: "" },
   ];
   const FILES = {
     plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" },
@@ -190,59 +190,83 @@
     return piece;
   }
 
-  /* ---------- ФОНДА тексеру және өздігінен түзету ---------- */
-  async function verifyBg(code, my, T) {
-    R.bg = true; R.bgCtrl = new AbortController();
-    const sig = R.bgCtrl.signal, idea = S.data.idea, F = S.data.files, original = code;
-    const alive = () => my === R.bgId;
-    const errBox = () => $("#errs");
-    let best = { code, errs: null }, fixes = 0;
-    try {
-      for (;;) {
-        if (!alive()) return;
-        setStep("verify", "active", fixes ? "Қайта тексеріп жатыр…" : "Фонда тексеріп жатыр…");
-        const endChk = T.begin(fixes ? `қайта тексеру ${fixes}` : "тексеру");
-        const { errors } = await Q.check.run(code);
-        endChk();
-        if (!alive()) return;
-        if (best.errs === null || errors.length <= best.errs.length) best = { code, errs: errors };
-        if (!errors.length) break;
-        setStep("verify", "active", `${errors.length} қате табылды`);
-        const eb = errBox(); if (eb) { eb.hidden = R.hide; eb.textContent = errors.slice(0, 4).map((x) => "• " + x.slice(0, 130)).join("\n"); }
-        if (fixes >= 3) break;
-        fixes++;
-        await Q.sleep(900);
-        if (!alive()) return;
-        setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
-        const endFix = T.begin(`түзету ${fixes}`);
-        const fx = await Q.codegen.fixJs({ title: idea.title, body: F.body || "", css: F.css || "", js: F.js || "", errors, sig });
-        endFix();
-        if (!alive()) return;
-        if (fx) { F.js = fx.js; code = fx.html; }
-      }
-      const eb = errBox(); if (eb) eb.hidden = true;
-      const left = best.errs || [];
-      // түзетілген нұсқа дайын болғанда нәтиже жаңарады (қолданушы арада өзгертпесе)
-      if (best.code !== original && F.html === original) {
-        F.html = best.code; S.data.versions.push({ html: best.code, note: "Автотүзету" });
-        S.save(); Q.result.refresh(true);
-        addFileRow("html");
-        toast("Қосымша түзетіліп жаңартылды", "ok", 3500);
-      }
-      setStep("verify", left.length ? "warn" : "done", left.length ? "Кей жерлері жұмыс істемеуі мүмкін" : fixes ? `Қате жоқ ✓ (${fixes} түзету)` : "Қате жоқ ✓");
-    } catch (e) {
-      if (e.code !== "abort") setStep("verify", "warn", "Тексеру аяқталмады");
-    } finally {
-      if (alive()) { R.bg = false; R.bgCtrl = null; T.total("тексеруімен бірге"); saveAgent(); }
+  /* ---------- ТЕКСЕРУ ("Дайын" дейін): нақты басып көру + AI тексеруі → ақауларды түзету (ең көбі 3 айналым) ---------- */
+  const plural = (n, w) => `${n} ${w}`;
+  // ақаулардың салмағы: JS қате/бос бет — ауыр, өлі батырма — орташа, AI ескертуі — жеңіл
+  const score = (issues) => issues.reduce((a, x) => a + (/^AI тексеруі/.test(x) ? 1 : /^(JS қате|Бет|Код|Басатын)/.test(x) ? 5 : 3), 0);
+  /** Ақаулардың қысқа, түсінікті жиынтығы: «3 батырма жұмыс істемейді · 1 қате» */
+  function summarize(chk, aiN) {
+    const parts = [];
+    if (chk.dead.length) parts.push(plural(chk.dead.length, "батырма жұмыс істемейді"));
+    const other = chk.issues.length - chk.dead.length - chk.stat.length;
+    if (chk.stat.length) parts.push(plural(chk.stat.length, "байланыс қатесі"));
+    if (other > 0) parts.push(plural(other, "қате"));
+    if (aiN) parts.push(plural(aiN, "ескерту (AI)"));
+    return parts.join(" · ") || "ақау табылды";
+  }
+
+  async function verify(out, T, sig) {
+    const idea = S.data.idea, F = S.data.files;
+    let code = out.html, body = out.body, js = out.js, fixes = 0, aiIssues = [];
+    let best = { html: code, body, js, issues: null, text: "" };
+    const errBox = $("#errs");
+    const showIssues = (list) => {
+      if (!errBox) return;
+      errBox.hidden = R.hide || !list.length;
+      errBox.textContent = list.slice(0, 5).map((x) => "• " + x.slice(0, 150)).join("\n");
+    };
+    const pickBest = (issues, text) => {
+      const sc = score(issues);
+      if (best.issues === null || sc <= best.score) best = { html: code, body, js, issues, text, score: sc };
+    };
+    setStep("verify", "active", "Іске қосып, батырмаларды басып тексеріп жатыр…");
+    // 1-айналым: нақты басып көру және AI тексеруі қатар жүреді
+    const endChk = T.begin("тексеру (басу + AI)");
+    const [chk0, ai] = await Promise.all([
+      Q.check.run(code),
+      Q.codegen.review({ plan: F.plan || "", body, js, sig }).catch((e) => { if (e.code === "abort") throw e; return []; }),
+    ]);
+    endChk();
+    aiIssues = ai;
+    let chk = chk0;
+    for (;;) {
+      const issues = chk.issues.concat(fixes === 0 ? aiIssues : []);
+      const text = summarize(chk, fixes === 0 ? aiIssues.length : 0);
+      pickBest(issues, text);
+      console.log(`[QWQ] тексеру ${fixes}: басылды ${chk.clicked}, өлі ${chk.dead.length}, өңдегіші жоқ ${chk.nohandler}, ақау ${issues.length}`);
+      if (!issues.length) break;
+      setStep("verify", "active", text);
+      showIssues(issues);
+      if (fixes >= 3) break;
+      fixes++;
+      await Q.sleep(700);
+      setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
+      const endFix = T.begin(`түзету ${fixes}`);
+      const fx = await Q.codegen.fixJs({ title: idea.title, body, css: out.css, js, errors: issues, sig });
+      endFix();
+      if (fx) { js = fx.js; body = fx.body; code = fx.html; }
+      setStep("verify", "active", "Қайта тексеріп жатыр…");
+      const endRe = T.begin(`қайта тексеру ${fixes}`);
+      chk = await Q.check.run(code);
+      endRe();
     }
+    if (errBox) errBox.hidden = true;
+    const left = best.issues || [];
+    if (!left.length) {
+      setStep("verify", "done", fixes ? "Түзетілді ✓" : "Қате жоқ ✓");
+    } else {
+      // үш айналымнан кейін де ақау қалса — ең аз ақауы бар нұсқаны көрсетіп, нақты не істемейтінін айтамыз
+      const names = [...new Set(left.map((x) => (x.match(/«([^»]+)»/) || [])[1]).filter(Boolean))].slice(0, 3).map((x) => `«${x}»`).join(", ");
+      setStep("verify", "warn", `${best.text}${names ? ": " + names : ""} — кей жерлері жұмыс істемеуі мүмкін`);
+    }
+    return { html: best.html, body: best.body, js: best.js, fixes, left };
   }
 
   async function run() {
     const idea = S.data.idea;
     if (!idea || R.active) return;
     if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
-    R.bgId++; if (R.bgCtrl) R.bgCtrl.abort(); R.bg = false;
-    R.active = true; R.hide = false; R.auto = false; R.open = null; R.stepT = {};
+        R.active = true; R.hide = false; R.auto = false; R.open = null; R.stepT = {};
     R.ctrl = new AbortController();
     S.data.files = {}; S.data.versions = [];
     render();                       // таза күй
@@ -255,7 +279,7 @@
     R.tick = setInterval(() => { R.ui.timer && (R.ui.timer.textContent = fmtTime(performance.now() - R.t0)); }, 100);
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
     const sig = R.ctrl.signal, T = perf();
-    let cur = "plan", startBg = null;
+    let cur = "plan";
     try {
       /* 1+2. Жоспар және интернеттен іздеу ПАРАЛЛЕЛЬ */
       setStep("plan", "active", ""); setStep("search", "active", "");
@@ -334,19 +358,24 @@
       showMini(out.html);
       setStep("code", "done", `${out.html.split("\n").length} жол · ${fmtSize(byteLen(out.html))}`);
 
-      /* 4. Дайын: нәтиже бірден ашылады, тексеру фонда жүреді */
+      /* 4. Тексеру: батырмаларды нақты басып көру + AI тексеруі, ақауларды түзету */
+      cur = "verify";
+      const fin = await verify(out, T, sig);
+      F.body = fin.body; F.js = fin.js; F.html = fin.html; addFileRow("html");
+      showMini(fin.html);
+
+      /* 5. Дайын: тек тексеруден кейін */
       cur = "done";
-      S.data.versions = [{ html: out.html, note: "Бастапқы нұсқа" }];
+      S.data.versions = [{ html: fin.html, note: fin.fixes ? "Автотүзетілген нұсқа" : "Бастапқы нұсқа" }];
       S.save();
       setStep("done", "done", "");
       clearInterval(R.tick); R.ui.timer.textContent = fmtTime(performance.now() - R.t0);
-      T.total("код дайын");
+      T.total("агент (тексерумен)");
       R.ui.live.hidden = true;
       R.ui.liveCode.classList.remove("caret");
       Q.result.refresh(true);
       const dot = $("#dot-result"); if (Q.view !== "result") dot.hidden = false;
-      if (R.auto) Q.go("result"); else toast("Дайын!", "ok", 3500);
-      R.bg = true; startBg = () => verifyBg(out.html, R.bgId, T);
+      if (R.auto) Q.go("result"); else toast(fin.left.length ? "Дайын (кей жерлері жұмыс істемеуі мүмкін)" : "Дайын!", fin.left.length ? "err" : "ok", 3500);
     } catch (e) {
       if (e.code === "abort") toast("Тоқтатылды.", "ok", 2000);
       else toast(e.message || "Агент жұмысын аяқтай алмады. Қайта байқап көр.", "err", 8000);
@@ -365,9 +394,8 @@
         R.ui.peek.hidden = !S.data.files.html;
         R.ui.peek.innerHTML = `${ic("eye", "ico ico--sm")}Нәтижені ашу`;
       }
-      if (startBg) startBg();
     }
   }
 
-  Q.code = { render, run, isRunning: () => R.active || R.bg, extractHtml, complete, dedupe, stripFence };
+  Q.code = { render, run, isRunning: () => R.active, extractHtml, complete, dedupe, stripFence };
 })(window.QWQ);

@@ -22,6 +22,7 @@ ${QUALITY}
 - Өз CSS-ің тек қосымша үшін (қысқа, мысалы диаграмма, ерекше элементтер). Негізгі дизайн шаблоннан келеді.
 
 ТАЛАПТАР:
+- Әр батырмаға міндетті түрде addEventListener арқылы нақты әрекет тағылсын (тек data-go / data-open / data-close атрибуттары бар батырмаларды үлгі өзі өңдейді). Бос немесе әрекетсіз батырма болмасын: әр батырма басылғанда көрінетін өзгеріс болсын (тізім жаңарады, экран ауысады, хабар шығады, деректер сақталады).
 - Мәтіндердің бәрі қазақша. Деректерді store арқылы localStorage-та сақта. Бос күйлерді (.empty) және тексерулерді (бос өріс, қате енгізу) ұмытпа.
 - Жаңа элементтерді JS арқылы салғанда HTML-ді esc() арқылы қауіпсіз құр. Диаграмма керек болса, inline SVG немесе CSS қолдан. Сыртқы сілтеме/кітапхана/сурет ЖОҚ.
 - Бастапқы күйді JS соңында іске қос (тізімдерді салу, санауыштарды жаңарту).
@@ -87,31 +88,5 @@ ${o.info.slice(0, 2500)}`;
     return { body: p.body, css: p.css, js: p.js, html: Q.template.build(o.idea.title, p.body, p.css, p.js) };
   }
 
-  /** Қате тек JS-те болса, бүкіл файлды емес, тек JS-ке қысқа патч сұрау; болмаса JS-ті толық қайта жаздыру */
-  async function fixJs(o) {
-    const route = { agent: true, model: CODE_MODEL };
-    try {
-      const pr = await Q.api.chat({
-        signal: o.sig, web: false, stream: false, ...route,
-        message: `Төмендегі қосымшаны іске қосқанда мына қателер табылды:\n${o.errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзететін ҚЫСҚА патчтар жаса. Жауапта ТЕК JSON массив бер (түсініктеме, \`\`\` жоқ): [{"find":"JS кодында дәл кездесетін 1-3 жол","replace":"жаңа мәтін"}]. "find" мәтіні қазіргі JS-те әріпке дейін дәл болуы керек.\n\nHTML (id-лар):\n\`\`\`html\n${o.body.slice(0, 9000)}\n\`\`\`\n\nҚазіргі JS:\n\`\`\`js\n${o.js}\n\`\`\``,
-      });
-      const a = pr.answer, i = a.indexOf("["), j = a.lastIndexOf("]");
-      const patches = i >= 0 && j > i ? JSON.parse(a.slice(i, j + 1)) : [];
-      let js = o.js, applied = 0;
-      for (const p of patches) {
-        if (p && typeof p.find === "string" && typeof p.replace === "string" && p.find.length > 3 && js.includes(p.find)) { js = js.replace(p.find, () => p.replace); applied++; }
-      }
-      if (applied) return { js, html: Q.template.build(o.title, o.body, o.css, js) };
-    } catch (e) { if (e.code === "abort") throw e; }
-    const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: true, ...route,
-      message: `Төмендегі қосымшаны іске қосқанда мына қателер табылды:\n${o.errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет. JavaScript бөлігінің ТОЛЫҚ түзетілген нұсқасын қайтар: басқа функцияларды алып тастама, қысқартпа. Жауапта ТЕК бір \`\`\`js блогы бол.\n\nHTML (id-лар соған сәйкес болсын):\n\`\`\`html\n${o.body.slice(0, 12000)}\n\`\`\`\n\nҚазіргі JS:\n\`\`\`js\n${o.js}\n\`\`\``,
-    });
-    const m = r.answer.match(/```[a-zA-Z]*[ \t]*\n([\s\S]*?)(?:\n[ \t]*```|$)/);
-    const js = (m ? m[1] : r.answer).trim();
-    if (js.length < 0.6 * o.js.length) return null;     // қысқартып жіберсе — қабылдамаймыз
-    return { js, html: Q.template.build(o.title, o.body, o.css, js) };
-  }
-
-  Q.codegen = { write, fixJs, CODE_MODEL, PLAN_MODEL };
+  Q.codegen = { write, CODE_MODEL, PLAN_MODEL };
 })(window.QWQ);
