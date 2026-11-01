@@ -274,10 +274,10 @@
       })();
       const searchP = (async () => {
         const end = T.begin("іздеу");
-        // іздеу міндетті емес: 40 с-тан ұзаққа созылса, оны тоқтатып жалғастырамыз
+        // іздеу міндетті емес: 12 с-тан ұзаққа созылса (502, қайталау, үнсіздік), оны тоқтатып жалғастырамыз
         const sc = new AbortController(); let timedOut = false;
         const link = () => sc.abort(); sig.addEventListener("abort", link, { once: true });
-        const timer = setTimeout(() => { timedOut = true; sc.abort(); }, 40000);
+        const timer = setTimeout(() => { timedOut = true; sc.abort(); }, 12000);
         let info = "";
         try {
           const r = await Q.api.chat({
@@ -292,8 +292,8 @@
           setStep("search", "done", n ? `${n} дереккөз` : (r.tools || []).includes("web_search") ? "Іздеу орындалды" : "");
         } catch (e) {
           if (e.code === "abort" && !timedOut) throw e;
-          S.data.files.info = "# Жиналған мәлімет\n\nІздеу қолжетімсіз болды, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
-          setStep("search", "warn", timedOut ? "Іздеусіз жалғастырды" : "Іздеу қолжетімсіз");
+          S.data.files.info = "# Жиналған мәлімет\n\nІздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
+          setStep("search", "warn", "Іздеу өткізілді");
         } finally { clearTimeout(timer); sig.removeEventListener("abort", link); end(); }
       })();
       try { await Promise.all([planP, searchP]); }
