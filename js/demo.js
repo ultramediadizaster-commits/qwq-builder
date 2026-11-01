@@ -3,62 +3,32 @@
   const { $, sleep, toast } = Q;
   const S = Q.store;
 
-  const APP = String.raw`<!doctype html><html lang="kk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Сөз жаттықтырғыш</title>
-<style>
-:root{--accent:#0a84ff;--bg:#05070d}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(70% 40% at 50% 0%,color-mix(in srgb,var(--accent) 34%,transparent),transparent),var(--bg);color:#fff;display:flex;flex-direction:column;align-items:center;padding:28px 16px}
-h1{font-size:26px;margin:6px 0 4px;letter-spacing:-.02em}
-.stat{display:flex;gap:16px;margin:10px 0 14px;font-size:14px;color:#b9c3d6}
-.bar{width:100%;max-width:420px;height:8px;background:#1b2233;border-radius:9px;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
-.card{width:100%;max-width:420px;height:250px;margin:26px 0;perspective:900px;cursor:pointer}
-.in{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
-.card.f .in{transform:rotateY(180deg)}
-.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:28px;display:grid;place-items:center;text-align:center;padding:20px;font-size:36px;font-weight:700;background:linear-gradient(145deg,#182036,#0d1322);border:1px solid #2a3552;box-shadow:0 18px 40px rgba(0,0,0,.5)}
-.back{transform:rotateY(180deg);color:var(--accent)}
-.face small{display:block;font-size:13px;font-weight:400;color:#8ea0bd;margin-top:10px}
-.btns{display:flex;gap:12px;width:100%;max-width:420px}
-button{flex:1;min-height:54px;border:0;border-radius:18px;font-size:17px;font-weight:600;color:#fff;background:#1b2233;cursor:pointer;transition:transform .2s}
-button.ok{background:var(--accent)}
-button:active{transform:scale(.95)}
-.fin{font-size:24px;text-align:center;line-height:1.5}
-</style></head><body>
-<h1>Сөз жаттықтырғыш</h1>
-<div class="stat"><span>Білемін: <b id="k">0</b></span><span>Қайталау: <b id="r">0</b></span><span>Рекорд: <b id="b">0</b></span></div>
-<div class="bar"><i id="p"></i></div>
-<div class="card" id="c"><div class="in"><div class="face" id="a"></div><div class="face back" id="e"></div></div></div>
-<div class="btns"><button id="no">Қайта</button><button class="ok" id="yes">Білемін</button></div>
-<script>
-var W=[["Алма","Apple"],["Кітап","Book"],["Су","Water"],["Үй","House"],["Дос","Friend"],["Күн","Sun"],["Қала","City"],["Ана","Mother"],["Өнер","Art"],["Жол","Road"],["Тіл","Language"],["Бақыт","Happiness"]];
-var q=W.slice().sort(function(){return Math.random()-.5}),known=0,again=0,best=0,total=W.length;
-try{best=+localStorage.getItem("best")||0}catch(e){}
-function $(i){return document.getElementById(i)}
+  // дайын үлгіге (template.js) толтырылатын демо қосымша: сөз жаттықтырғыш
+  const BODY = `<header class="top"><h1>Сөз <span class="grad">жаттықтырғыш</span></h1><p class="muted">Қазақша сөздерді карточкамен үйрен</p></header>
+<section class="screen on" id="learn">
+  <div class="grid2"><div class="stat"><b id="k">0</b><span>Білемін</span></div><div class="stat"><b id="r">0</b><span>Қайталау</span></div></div>
+  <div class="card glow" style="margin-top:14px"><div class="progress"><i id="p"></i></div></div>
+  <div class="card" id="card" style="min-height:200px;display:grid;place-items:center;text-align:center;cursor:pointer"><div><h1 id="w">Алма</h1><p class="muted" id="t">Аудару үшін бас</p></div></div>
+  <div class="row"><button class="btn grow" id="no">Қайта</button><button class="btn primary grow" id="yes">Білемін</button></div>
+</section>
+<section class="screen" id="stats"><div class="card"><h2>Нәтиже</h2><div class="list" id="hist"></div><p class="empty" id="empty">Әзірге деректер жоқ</p></div></section>
+<nav class="tabbar"><button class="tab on" data-go="learn">Жаттау</button><button class="tab" data-go="stats">Нәтиже</button></nav>`;
+  const JS = `var W=[["Алма","Apple"],["Кітап","Book"],["Су","Water"],["Үй","House"],["Дос","Friend"],["Күн","Sun"],["Қала","City"],["Ана","Mother"],["Өнер","Art"],["Жол","Road"]];
+var q=W.slice().sort(function(){return Math.random()-.5}),known=0,again=0,flipped=false,hist=store.get("hist",[]);
 function show(){
-  var c=$("c");c.classList.remove("f");
-  if(!q.length){
-    c.outerHTML='<div class="fin" id="c">Жарайсың!<br>'+known+' сөз үйрендің</div>';
-    $("yes").textContent="Қайтадан";$("no").style.display="none";
-    $("yes").onclick=function(){location.reload()};
-    if(known>best){best=known;try{localStorage.setItem("best",best)}catch(e){}}
-    $("b").textContent=best;return}
-  $("a").innerHTML=q[0][0]+"<small>Аудару үшін бас</small>";
-  $("e").textContent=q[0][1];
-  $("p").style.width=((total-q.length)/total*100)+"%";
-  $("k").textContent=known;$("r").textContent=again;$("b").textContent=best;
+  flipped=false;
+  if(!q.length){$("#w").textContent="Жарайсың!";$("#t").textContent=known+" сөз үйрендің";hist.unshift({d:Date.now(),n:known});store.set("hist",hist.slice(0,8));renderHist();return}
+  $("#w").textContent=q[0][0];$("#t").textContent="Аудару үшін бас";
+  $("#p").style.width=((W.length-q.length)/W.length*100)+"%";$("#k").textContent=known;$("#r").textContent=again;
 }
-$("c").onclick=function(){this.classList.toggle("f")};
-$("yes").onclick=function(){if(!q.length)return;known++;q.shift();show()};
-$("no").onclick=function(){if(!q.length)return;again++;q.push(q.shift());show()};
-show();
-</script></body></html>`;
-
-  // дайын қосымшаны 3 бөлікке бөлеміз (агент солай жаздырады)
-  const PARTS = {
-    css: APP.match(/<style>\n([\s\S]*?)<\/style>/)[1].trim(),
-    body: APP.match(/<body>\n([\s\S]*?)<script>/)[1].trim(),
-    js: APP.match(/<script>\n([\s\S]*?)<\/script>/)[1].trim(),
-  };
+function renderHist(){
+  $("#empty").hidden=hist.length>0;
+  $("#hist").innerHTML=hist.map(function(h){return '<div class="item"><div class="grow"><b>'+esc(h.n)+' сөз</b><span>'+fmt.date(h.d)+'</span></div><span class="badge ok">✓</span></div>'}).join("");
+}
+$("#card").onclick=function(){if(!q.length)return;flipped=!flipped;$("#t").textContent=flipped?q[0][1]:"Аудару үшін бас"};
+$("#yes").onclick=function(){if(!q.length)return;known++;q.shift();show()};
+$("#no").onclick=function(){if(!q.length)return;again++;q.push(q.shift());show()};
+show();renderHist();`;
 
   const IDEA = {
     title: "Сөз жаттықтырғыш",
@@ -86,14 +56,12 @@ show();
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
       else if (/"find"/.test(m)) ans = '[{"find":"renderStats();","replace":""}]';                  // JS патчы
-      else if (/қателер табылды/.test(m)) ans = "```html\n" + APP + "\n```";                       // түзетілген нұсқа
-      else if (/Қазір 1\/3/.test(m)) ans = "```html\n" + PARTS.body + "\n<!--END-->\n```";
-      else if (/Қазір 2\/3/.test(m)) ans = "```css\n" + PARTS.css + "\n/*END*/\n```";
-      else if (/Қазір 3\/3/.test(m)) ans = "```js\n" + PARTS.js + "\nrenderStats();\n//END\n```"; // әдейі 1 қатесі бар нұсқа
+      else if (/қателер табылды/.test(m)) ans = ["```js", JS, "```"].join("\n");                       // JS-ті толық қайта жазу
+      else if (/ЖАУАП ФОРМАТЫ/.test(m)) ans = ["===HTML===", BODY, "===CSS===", "", "===JS===", JS, "renderStats();", "===END==="].join("\n"); // әдейі 1 қатесі бар нұсқа
       else if (/толық коды/.test(m)) {
         const ask = (m.match(/«([^»]+)»/) || [])[1] || "";
         const col = (COLORS.find((c) => ask.toLowerCase().includes(c[0])) || [0, "#ff375f"])[1];
-        const cur = (m.match(/```html\n([\s\S]*?)\n```\s*$/) || [])[1] || APP;
+        const cur = (m.match(/```html\n([\s\S]*?)\n```\s*$/) || [])[1] || Q.template.build('Сөз жаттықтырғыш', BODY, '', JS);
         ans = "```html\n" + cur.replace(/--accent:#[0-9a-fA-F]{3,8}/, "--accent:" + col) + "\n```";
       } else ans = CHAT[Math.min(n++, CHAT.length - 1)];
 

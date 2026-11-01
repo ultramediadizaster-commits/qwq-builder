@@ -1,63 +1,51 @@
-/* QWQ Builder · кодты 3 бөлікпен жаздыру: HTML құрылымы → CSS → JS → index.html */
+/* QWQ Builder · кодты БІР сұраумен жаздыру (дайын үлгіге мазмұн + логика толтырылады) */
 (function (Q) {
-  const { esc, throttleRaf } = Q;
   const S = Q.store;
-
-  const NAME = { body: "құрылым.html", css: "стиль.css", js: "логика.js" };
-  const FENCE = { body: "html", css: "css", js: "js" };
-  const MARK = { body: "<!--END-->", css: "/*END*/", js: "//END" };
-  const MARK_RE = { body: /\s*<!--\s*END\s*-->[\s\S]*$/i, css: /\s*\/\*\s*END\s*\*\/[\s\S]*$/i, js: /\s*\/\/\s*END\s*$/i };
-  const HAS_MARK = { body: /<!--\s*END\s*-->/i, css: /\/\*\s*END\s*\*\//i, js: /\/\/\s*END\s*$/i };
+  // Worker: agent:true + codeModels тізімінен модель → Gemini, жылдам әрі ұзын шығыс (8–16K токен)
+  const CODE_MODEL = "gemini-3.5-flash-lite";
+  const PLAN_MODEL = "gemini-3.1-flash-lite";
 
   const QUALITY = "Қосымша толыққанды болсын: кемінде 3-4 функция, әдемі дизайн, анимациялар, барлық батырмалар жұмыс істесін. Шағын демо емес, нақты пайдалануға болатын өнім жаса.";
-  const COMMON = `- Интерфейс мәтіндері түгел қазақ тілінде.
-- Mobile-first (390px), содан кейін компьютерге бейімде; көлденең скролл болмасын.
-- Сыртқы кітапхана, CDN, сыртқы сурет сілтемесі ЖОҚ.
-- HTML тег атаулары "tool" деп басталмасын (<toolbar>, <tooltip> орнына <div class="bar"> қолдан).`;
+  const MIN_TOTAL = 6000;     // body + js осыдан қысқа болса — "шағын демо" деп санап, кеңейтіп қайта жаздырамыз
 
-  const head = (n, what) => `Сен тәжірибелі frontend әзірлеушісің. Веб-қосымшаны ҮШ БӨЛІКПЕН жазамыз: 1) HTML құрылымы, 2) CSS, 3) JS. Қазір ${n}/3: ${what}.\n${QUALITY}\n`;
-  const tail = (k) => `- Жауапта ТЕК бір \`\`\`${FENCE[k]} блогы бол, түсініктеме жазба. Блоктың ең соңғы жолы дәл мынау болсын: ${MARK[k]}`;
+  function prompt(o) {
+    return `Сен тәжірибелі frontend әзірлеушісің. Дайын базалық ҮЛГІГЕ (шаблонға) тек мазмұн мен логиканы толтырып, толыққанды веб-қосымша жаз. Шаблонда дизайн, CSS айнымалылары және JS көмекшілері бар, оларды қайта жазба.
 
-  function prompt(k, o, parts) {
-    const ctx = `\nЖОБА:\n${o.brief}\n\nЖОСПАР:\n${o.plan.slice(0, 3500)}\n\nҚОСЫМША МӘЛІМЕТ:\n${o.info.slice(0, 2000)}`;
-    const html = `\nҚОЛДАНЫЛАТЫН HTML (<body> ішіндегі белгілеу):\n\`\`\`html\n${(parts.body || "").slice(0, 16000)}\n\`\`\`\n`;
-    if (k === "body") return `${head(1, "HTML құрылымы")}
+${QUALITY}
+
+ШАБЛОН БЕРЕТІН СЫНЫПТАР (HTML-де қолдан):
+- Құрылым: <header class="top"><h1>..</h1><p class="muted">..</p></header>; әр экран <section class="screen" id="..">, біреуіне "on" қос; төменгі навигация <nav class="tabbar"><button class="tab on" data-go="экран-id">Атауы</button>..</nav> (data-go арқылы экран ауысуы автоматты жұмыс істейді).
+- .card, .card.glow, .row (.between), .grow, .grid2, .stat (ішінде <b>мән</b><span>атауы</span>), .list > .item (ішінде .grow > <b>+<span>), .badge (.ok .warn .bad), .progress > <i style="width:40%">, .empty, .muted, .grad (градиент мәтін), .chips > .chip (.on).
+- Батырма: .btn, .btn.primary, .btn.ghost, .btn.danger, .btn.sm, .btn.icon, .btn.block. Форма: .field > <label> + .input / .select / .textarea. Ауыстырғыш: button.switch (.on).
+- Модальды терезе: <div class="modal" id="m1"><div class="sheet">..<button class="btn" data-close>Жабу</button></div></div>; ашу: data-open="m1".
+- JS көмекшілері ДАЙЫН (қайта жарияла-ма!): $ $$ store.get(кілт, әдепкі) store.set(кілт, мән) uid() esc(мәтін) toast(хабар) go(экранId) fmt.money(n) fmt.date(d) fmt.num(n).
+- Өз CSS-ің тек қосымша үшін (қысқа, мысалы диаграмма, ерекше элементтер). Негізгі дизайн шаблоннан келеді.
+
 ТАЛАПТАР:
-- Тек <body> ІШІНДЕГІ белгілеуді жаз (<!doctype>, <html>, <head>, <body>, <style>, <script> тегтерінсіз).
-- Барлық экрандар мен элементтерді толық жаз: шапка, навигация, негізгі экрандар, формалар, тізімдер, бос күйлер, модальды терезелер, т.б.
-- Әр интерактив элементке бірегей id бер (CSS пен JS соларға сүйенеді).
-${COMMON}
-${tail("body")}
-${ctx}`;
-    if (k === "css") return `${head(2, "CSS")}
-ТАЛАПТАР:
-- Төмендегі HTML үшін толық CSS жаз: :root түс айнымалылары, барлық класс пен id стильделсін, градиенттер, көлеңке/шыны эффектілері, жұмсақ анимациялар (transition, @keyframes), hover/active күйлері, @media (min-width:768px) бейімдеу, @media (prefers-reduced-motion: reduce).
-- Әдемі қараңғы тақырып, контраст кемінде 4.5:1, батырмалар кемінде 44px.
-- ТЕК CSS жаз (<style> тегінсіз).
-${COMMON}
-${tail("css")}
-${ctx}
-${html}`;
-    return `${head(3, "JavaScript")}
-ТАЛАПТАР:
-- Төмендегі HTML үшін толық JavaScript жаз: HTML-дегі id-ларды дәл қолдан; барлық батырма, форма, тізім, есептеу шынымен жұмыс істесін; кемінде 3-4 функция.
-- Күйді localStorage-та сақта (try/catch ішінде), қателерді ұста, бос күйлерді көрсет, анимацияларды іске қос (класс қосу/алу).
-- Іске қосу DOMContentLoaded ішінде. ТЕК JS жаз (<script> тегінсіз).
-${COMMON}
-${tail("js")}
-${ctx}
-${html}`;
+- Мәтіндердің бәрі қазақша. Деректерді store арқылы localStorage-та сақта. Бос күйлерді (.empty) және тексерулерді (бос өріс, қате енгізу) ұмытпа.
+- Жаңа элементтерді JS арқылы салғанда HTML-ді esc() арқылы қауіпсіз құр. Диаграмма керек болса, inline SVG немесе CSS қолдан. Сыртқы сілтеме/кітапхана/сурет ЖОҚ.
+- Бастапқы күйді JS соңында іске қос (тізімдерді салу, санауыштарды жаңарту).
+
+ЖАУАП ФОРМАТЫ (дәл осылай, басқа ештеңе жазба, \`\`\` қоспа):
+===HTML===
+<header class="top"> бастап экрандар мен навигацияға дейінгі белгілеу (<body>, <script>, <style> тегтерінсіз)
+===CSS===
+қосымша қысқа CSS (қажет болмаса бос қалдыр)
+===JS===
+толық JavaScript (<script> тегінсіз)
+===END===
+
+ЖОБА:
+${o.brief}
+
+ЖОСПАР:
+${o.plan.slice(0, 3500)}
+
+ҚОСЫМША МӘЛІМЕТ:
+${o.info.slice(0, 2500)}`;
   }
 
-  /** Жауаптан таза бөлік алу: ```-блок, маркер және қоршауларсыз */
-  const unfence = (raw) => { const m = raw.match(/```[a-zA-Z]*[ \t]*\n([\s\S]*?)(?:\n[ \t]*```|$)/); return m ? m[1] : raw; };
-  function clean(raw, k) {
-    let t = unfence(raw);
-    if (k === "css") t = t.replace(/<\/?style[^>]*>/gi, "");
-    if (k === "js") t = t.replace(/<\/?script[^>]*>/gi, "");
-    return t.replace(MARK_RE[k], "").trimEnd();
-  }
-  const done = (raw, k) => HAS_MARK[k].test(unfence(raw).trimEnd());
+  const contPrompt = (tail) => `Төмендегі жауап ұзындыққа байланысты үзіліп қалды. Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, \`\`\` қоспа. Формат сақталсын (===CSS===, ===JS===), ең соңында ===END=== жаз. Егер жауап толық аяқталған болса, тек ===END=== жаз.\n\nСоңғы бөлік:\n${tail}`;
 
   function overlap(a, b) {
     const t = a.slice(-400);
@@ -65,66 +53,46 @@ ${html}`;
     return b;
   }
 
-  // бөліктің ең аз көлемі: одан қысқа болса, "шағын демо" деп санап, кеңейтіп қайта жаздырамыз
-  const MIN = { body: 3000, css: 3500, js: 5000 };
-  const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
-  /** Бөлік шынымен аяқталған ба: CSS жақшалары, JS синтаксисі, HTML тегтері */
-  function looksComplete(k, t) {
-    if (!t) return false;
-    if (k === "css") { const a = (t.match(/{/g) || []).length, b = (t.match(/}/g) || []).length; return a > 0 && a === b; }
-    if (k === "js") { try { new AsyncFn(t); return true; } catch (e) { return false; } }
-    const tags = "div|section|main|header|footer|nav|ul|ol|form|button|table|aside|article|select|label";
-    const a = (t.match(new RegExp(`<(${tags})\\b`, "gi")) || []).length, b = (t.match(new RegExp(`</(${tags})>`, "gi")) || []).length;
-    return a === b;
-  }
-
-  async function writePart(k, n, o, parts) {
-    S.data.files[k] = ""; o.onFile(k);
-    const gen = async (extra) => {
-      o.onPart(k, `${n}/3 · ${NAME[k]}${extra ? " · кеңейту" : ""}`);
-      const tick = throttleRaf((full) => { S.data.files[k] = clean(full, k); o.onFile(k); });
-      const r = await Q.api.chat({
-        signal: o.sig, web: false, stream: true, message: prompt(k, o, parts) + extra,
-        onDelta: (_, full) => { o.onLive(NAME[k], full); tick(full); },
-      });
-      tick.cancel();
-      return finish(k, r.answer, `${n}/3 · ${NAME[k]}`, o);
+  /**
+   * write({idea, brief, plan, info, sig, onLive(full), onPreview(html), onStage(text)})
+   * → { html, body, css, js }
+   */
+  async function write(o) {
+    const call = (message, extra) => Q.api.chat({ signal: o.sig, web: false, stream: true, agent: true, model: CODE_MODEL, message, ...extra });
+    const preview = (text) => {
+      const p = Q.template.parse(text);
+      // JS тек толық жазылған соң қосылады (жартылай JS қате береді)
+      return Q.template.build(o.idea.title, p.body, p.css, p.stage >= 4 ? p.js : "");
     };
-    let text = await gen("");
-    if (text.length < MIN[k] && !(Q.demo && Q.demo.active)) {
-      const again = await gen(`\n\nЕСКЕРТУ: алдыңғы жауап тым қысқа болды (${text.length} таңба): бұл шағын демо емес, толыққанды өнім болуы керек. Кемінде ${MIN[k]} таңбалық ТОЛЫҚ нұсқасын жаз.`);
-      if (again.length > text.length) text = again;
-    }
-    S.data.files[k] = text; o.onFile(k);
-    o.onLive(NAME[k], text);
-    return text;
-  }
+    const live = (full) => { o.onLive(full); o.onPreview && o.onPreview(full, preview); };
 
-  /** Маркер жоқ → бөлік үзілген: жалғастыру (1-ші рет стримдеп, одан соң стримсіз: Worker-дің `<tool` кесуінен қорғану) */
-  async function finish(k, raw0, label, o) {
-    let raw = raw0, tries = 0;
-    const ok = () => done(raw, k) && looksComplete(k, clean(raw, k));   // маркер бар, бірақ код үзілген болса да жалғастырамыз
-    while (!ok() && tries < 4) {
+    let r = await call(prompt(o), { onDelta: (_, full) => live(full) });
+    let raw = r.answer, tries = 0;
+    // Жауап үзілсе ғана жалғастыру
+    while (!Q.template.parse(raw).end && tries < 3) {
       tries++;
-      o.onPart(k, `${label} · жалғастыру ${tries}/4`);
-      const piece = await Q.api.chat({
-        signal: o.sig, web: false, stream: tries === 1 && !(Q.demo && Q.demo.active) ? true : false,
-        message: `Төмендегі ${NAME[k]} коды үзіліп қалды (толық емес). Дәл үзілген жерден жалғастыр: ТЕК қалған кодты жаз, қайталама, \`\`\` қоспа. Ең соңғы жолы дәл мынау болсын: ${MARK[k]}${looksComplete(k, clean(raw, k)) ? `. Егер бөлік шынымен аяқталған болса, тек соңғы маркерді жаз: ${MARK[k]}` : ""}\n\nСоңғы бөлік:\n${clean(raw, k).slice(-1500)}`,
-        onDelta: (_, full) => o.onLive(NAME[k], raw + "\n" + full),
-      });
-      const add = overlap(clean(raw, k), piece.answer.replace(/^\s*```[a-zA-Z]*\s*\n?/, "").replace(/\n?```\s*$/, ""));
-      raw = clean(raw, k) + "\n" + add;
-      if (!done(raw, k) && tries === 4) raw += "\n" + MARK[k];
+      o.onStage && o.onStage(`жалғастыру ${tries}/3`);
+      const c = await call(contPrompt(raw.slice(-1500)), { stream: tries === 1, onDelta: (_, full) => live(raw + "\n" + full) });
+      raw += "\n" + overlap(raw, c.answer.replace(/^\s*```[a-zA-Z]*\s*\n?/, "").replace(/\n?```\s*$/, ""));
     }
-    return clean(raw, k);
+    let p = Q.template.parse(raw);
+    // тым қысқа (шағын демо) болса — бір рет кеңейтіп қайта жаздырамыз
+    if (p.body.length + p.js.length < MIN_TOTAL && !(Q.demo && Q.demo.active)) {
+      o.onStage && o.onStage("кеңейту");
+      const again = await call(prompt(o) + `\n\nЕСКЕРТУ: алдыңғы жауап тым қысқа болды. Бұл шағын демо емес, толыққанды өнім: кемінде 4 функция, көп мазмұн, толық логика жаз.`, { onDelta: (_, full) => live(full) });
+      const p2 = Q.template.parse(again.answer);
+      if (p2.body.length + p2.js.length > p.body.length + p.js.length && p2.end) p = p2;
+    }
+    if (!p.body) throw new Q.api.QErr("QWQ код пішімін бұзды. Қайта байқап көр.", "format");
+    return { body: p.body, css: p.css, js: p.js, html: Q.template.build(o.idea.title, p.body, p.css, p.js) };
   }
 
-  /** Қате тек JS-те болса, бүкіл файлды емес, тек JS бөлігін түзеттіру (жылдам әрі қысқа) */
+  /** Қате тек JS-те болса, бүкіл файлды емес, тек JS-ке қысқа патч сұрау; болмаса JS-ті толық қайта жаздыру */
   async function fixJs(o) {
-    // 1) қысқа "тап → ауыстыр" патчтар (үлкен кодты қайта жазбай, тез әрі қауіпсіз)
+    const route = { agent: true, model: CODE_MODEL };
     try {
       const pr = await Q.api.chat({
-        signal: o.sig, web: false, stream: false,
+        signal: o.sig, web: false, stream: false, ...route,
         message: `Төмендегі қосымшаны іске қосқанда мына қателер табылды:\n${o.errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзететін ҚЫСҚА патчтар жаса. Жауапта ТЕК JSON массив бер (түсініктеме, \`\`\` жоқ): [{"find":"JS кодында дәл кездесетін 1-3 жол","replace":"жаңа мәтін"}]. "find" мәтіні қазіргі JS-те әріпке дейін дәл болуы керек.\n\nHTML (id-лар):\n\`\`\`html\n${o.body.slice(0, 9000)}\n\`\`\`\n\nҚазіргі JS:\n\`\`\`js\n${o.js}\n\`\`\``,
       });
       const a = pr.answer, i = a.indexOf("["), j = a.lastIndexOf("]");
@@ -133,49 +101,17 @@ ${html}`;
       for (const p of patches) {
         if (p && typeof p.find === "string" && typeof p.replace === "string" && p.find.length > 3 && js.includes(p.find)) { js = js.replace(p.find, () => p.replace); applied++; }
       }
-      if (applied) return { js, html: assemble(o.title, o.body, o.css, js) };
+      if (applied) return { js, html: Q.template.build(o.title, o.body, o.css, js) };
     } catch (e) { if (e.code === "abort") throw e; }
-    // 2) патч қолданылмаса — JS бөлігін толық қайта жаздыру
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: true,
-      message: `Төмендегі қосымшаны іске қосқанда мына қателер табылды:\n${o.errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет. JavaScript бөлігінің ТОЛЫҚ түзетілген нұсқасын қайтар: басқа функцияларды алып тастама, қысқартпа. Жауапта ТЕК бір \`\`\`js блогы бол, соңғы жолы дәл мынау: ${MARK.js}\n\nHTML (id-лар соған сәйкес болсын):\n\`\`\`html\n${o.body.slice(0, 12000)}\n\`\`\`\n\nҚазіргі JS:\n\`\`\`js\n${o.js}\n\`\`\``,
-      onDelta: (_, full) => o.onLive(NAME.js, full),
+      signal: o.sig, web: false, stream: true, ...route,
+      message: `Төмендегі қосымшаны іске қосқанда мына қателер табылды:\n${o.errors.map((x) => "- " + x).join("\n")}\n\nМына қателерді түзет. JavaScript бөлігінің ТОЛЫҚ түзетілген нұсқасын қайтар: басқа функцияларды алып тастама, қысқартпа. Жауапта ТЕК бір \`\`\`js блогы бол.\n\nHTML (id-лар соған сәйкес болсын):\n\`\`\`html\n${o.body.slice(0, 12000)}\n\`\`\`\n\nҚазіргі JS:\n\`\`\`js\n${o.js}\n\`\`\``,
     });
-    const js = await finish("js", r.answer, "JS түзету", o);
+    const m = r.answer.match(/```[a-zA-Z]*[ \t]*\n([\s\S]*?)(?:\n[ \t]*```|$)/);
+    const js = (m ? m[1] : r.answer).trim();
     if (js.length < 0.6 * o.js.length) return null;     // қысқартып жіберсе — қабылдамаймыз
-    return { js, html: assemble(o.title, o.body, o.css, js) };
+    return { js, html: Q.template.build(o.title, o.body, o.css, js) };
   }
 
-  function assemble(title, body, css, js) {
-    const m = body.match(/<body[^>]*>([\s\S]*?)(?:<\/body>|$)/i);
-    if (m) body = m[1];
-    js = js.replace(/<\/script/gi, "<\\/script");
-    return `<!doctype html>
-<html lang="kk">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title>
-<style>
-${css}
-</style>
-</head>
-<body>
-${body.trim()}
-<script>
-${js}
-</script>
-</body>
-</html>`;
-  }
-
-  async function write(o) {
-    const parts = {};
-    parts.body = await writePart("body", 1, o, parts);
-    parts.css = await writePart("css", 2, o, parts);
-    parts.js = await writePart("js", 3, o, parts);
-    return assemble(o.idea.title, parts.body, parts.css, parts.js);
-  }
-
-  Q.codegen = { write, fixJs, assemble, clean, NAME };
+  Q.codegen = { write, fixJs, CODE_MODEL, PLAN_MODEL };
 })(window.QWQ);

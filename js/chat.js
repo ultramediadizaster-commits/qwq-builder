@@ -105,7 +105,7 @@
     if (!btn || btn.disabled) return;
     btn.disabled = true; btn.innerHTML = `${ic("spark")}Күте тұр…`;
     try {
-      const idea = await Q.api.extractIdea(S.data.messages.slice(-20).map((m) => ({ role: m.role, content: m.content })));
+      const idea = await Q.api.extractIdea(S.data.messages.slice(-10).map((m) => ({ role: m.role, content: m.content })));
       S.data.idea = idea; S.data.files = {}; S.data.versions = [];
       S.save();
       Q.code.render();

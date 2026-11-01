@@ -55,7 +55,7 @@
       res = await fetch(S.base + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.key },
-        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream }),
+        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream, ...(o.agent ? { agent: true } : {}), ...(o.model ? { model: o.model } : {}) }),
         signal: ac.signal,
       });
     } catch (e) {
@@ -146,7 +146,8 @@
     const ask = `Жоғарыдағы әңгіме негізінде қолданушының қосымша идеясын қорытындыла. Жауапты ТЕК таза JSON пішімінде қайтар (markdown, түсініктеме қоспа):
 {"title":"қысқа атау (3–5 сөз)","summary":"бір сөйлемдік сипаттама","prompt":"веб-әзірлеушіге арналған толық тапсырма: мақсаты, экрандар, негізгі функциялар, деректер, дизайн қалауы. Қазақша, 150–350 сөз"}`;
     for (let i = 0; i < 3; i++) {
-      const r = await chat({ message: ask + (i ? "\nЕскерту: тек жарамды JSON объектісі керек." : ""), history, web: false, stream: false, signal });
+      // Gemini жолы (agent + модель): Gemma-дан әлдеқайда жылдам; тек соңғы 10 хабарлама жіберіледі
+      const r = await chat({ message: ask + (i ? "\nЕскерту: тек жарамды JSON объектісі керек." : ""), history: history.slice(-10), web: false, stream: false, signal, agent: true, model: "gemini-3.1-flash-lite" });
       const j = parseJSON(r.answer);
       if (j && j.title && j.prompt) {
         const p = Array.isArray(j.prompt) ? j.prompt.join("\n") : typeof j.prompt === "object" ? JSON.stringify(j.prompt, null, 2) : String(j.prompt);

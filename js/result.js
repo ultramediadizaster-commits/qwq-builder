@@ -86,7 +86,7 @@
     try {
       const cur = html();
       const r = await Q.api.chat({
-        signal: sig, web: false, stream: true,
+        signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
         message: `Төменде жұмыс істеп тұрған веб-қосымшаның толық коды берілген. Оны мына өтініш бойынша өзгерт: «${text}».\nЕсептің басқа бөлігін бұзба, интерфейс тілі қазақша қалсын. Жауапта ТЕК толық жаңартылған index.html кодын бір \`\`\`html блогымен қайтар, түсініктеме жазба.\n\n\`\`\`html\n${cur}\n\`\`\``,
         onDelta: (_, full) => setM(byteLen(full)),
       });
@@ -94,7 +94,7 @@
       while (!Q.code.complete(code) && tries < 4) {
         tries++;
         const t = await Q.api.chat({
-          signal: sig, web: false, stream: true,
+          signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
           message: `Төмендегі HTML коды үзіліп қалды. Дәл үзілген жерден ТЕК қалған кодты жалғастыр, қайталама, \`\`\` қоспа, </html> тегімен аяқта.\n\nСоңғы бөлік:\n${code.slice(-1500)}`,
           onDelta: (_, full) => setM(byteLen(code + full)),
         });
