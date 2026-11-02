@@ -313,11 +313,22 @@
           S.data.files.info = info; addFileRow("info");
           const urls = new Set((r.answer.match(/https?:\/\/[^\s)\]>"']+/g) || []).map((u) => u.replace(/[.,;]+$/, "")));
           const n = src.length || urls.size;
-          setStep("search", "done", n ? `${n} дереккөз` : (r.tools || []).includes("web_search") ? "Іздеу орындалды" : "");
+          const names = src.slice(0, 3).map((x) => (x.match(/^\[([^\]]+)\]/) || [, x])[1]).filter((x) => x && !/^https?:/.test(x)).join(", ");
+          setStep("search", "done", n ? `${n} дереккөз${names ? ": " + names : ""}` :(r.tools || []).includes("web_search") ? "Іздеу орындалды" : "");
         } catch (e) {
           if (e.code === "abort" && !timedOut) throw e;
-          S.data.files.info = "# Жиналған мәлімет\n\nІздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
-          setStep("search", "warn", "Іздеу өткізілді");
+          // Worker іздеуі жауап бермеді → кілтсіз резерв: Wikipedia (kk, ru) + Jina Reader
+          setStep("search", "active", "Резерв іздеу: Wikipedia…");
+          const fb = await Q.websearch.run(idea, { signal: sig, budget: 10000 });
+          if (fb) {
+            S.data.files.info = `# Жиналған мәлімет\n\n_Негізгі іздеу жауап бермеді, мәлімет Wikipedia мен Jina Reader арқылы алынды._\n\n${fb.text}\n\n## Дереккөздер\n${fb.sources.map((s) => `- [${s.title}](${s.url})`).join("\n")}\n`;
+            addFileRow("info");
+            info = S.data.files.info;
+            setStep("search", "done", `${fb.sources.length} дереккөз: ${fb.sources.map((s) => s.title.replace(/ — Wikipedia$/, "")).slice(0, 3).join(", ")}`);
+          } else {
+            S.data.files.info = "# Жиналған мәлімет\n\nІздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
+            setStep("search", "warn", "Іздеу өткізілді");
+          }
         } finally { clearTimeout(timer); sig.removeEventListener("abort", link); end(); }
       })();
       try { await Promise.all([planP, searchP]); }

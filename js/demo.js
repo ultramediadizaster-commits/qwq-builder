@@ -55,6 +55,7 @@ show();renderHist();`;
       let ans, srcs = [];
       if (/JSON пішімінде/.test(m)) { ans = JSON.stringify(IDEA); o = Object.assign({}, o, { stream: false }); }
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
+      else if (o.web && (() => { try { return localStorage.getItem("qwq.demo.web") === "502"; } catch (e) { return false; } })()) throw new Q.api.QErr("QWQ сервері жауап бермеді (502).", "http", false); // тест: Worker іздеуінің 502 қатесін имитациялау
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
       else if (/Әр функция толық жасалған ба/.test(m)) ans = '{"ok":true,"problems":[]}';
       else if (/"find"/.test(m)) ans = JSON.stringify([{ find: "renderStats();", replace: "" }, { append: "$('#share').addEventListener('click', function(){ toast('Сілтеме көшірілді'); });" }]); // JS қатесі + өлі батырма патчы
