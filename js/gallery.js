@@ -8,6 +8,28 @@
   const SANDBOX = "allow-scripts allow-forms allow-modals allow-popups";
   const ago = (ms) => new Date(ms).toLocaleDateString("kk-KZ", { day: "numeric", month: "short", year: "numeric" });
   const spin = `<div style="display:grid;place-items:center;padding:28px 0"><div class="ring"></div></div>`;
+  const MAX_THUMB = 60000;         // ережеде: thumb.size() <= 60000
+  /** Шағын суретті 240px WebP-ке сығады (кесіп тастамаймыз — кесілген data URL сынық сурет болады); сыймаса — бос */
+  function small(src) {
+    return new Promise((res) => {
+      if (!src) return res("");
+      const img = new Image();
+      img.onload = () => {
+        const tries = [[240, 0.6], [240, 0.45], [180, 0.45], [140, 0.4]];
+        for (const [w, q] of tries) {
+          const c = document.createElement("canvas");
+          c.width = Math.min(w, img.naturalWidth); c.height = Math.round(img.naturalHeight * c.width / img.naturalWidth);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          let u = c.toDataURL("image/webp", q);
+          if (!u.startsWith("data:image/webp")) u = c.toDataURL("image/jpeg", q);   // WebP жазбайтын браузер
+          if (u.length <= MAX_THUMB) return res(u);
+        }
+        res("");
+      };
+      img.onerror = () => res("");
+      img.src = src;
+    });
+  }
   const fbOr = async () => { try { return await C.getFb(); } catch (e) { toast("Галереяға қосылу мүмкін болмады. Интернетті тексер.", "err", 5000); return null; } };
 
   /* ---------- тізім ---------- */
@@ -33,7 +55,10 @@
         const it = items.find((x) => x.id === card.dataset.id);
         if (e.target.closest(".gal-adapt")) adapt(it); else if (e.target.closest(".gal-del")) remove(it); else if (e.target.closest(".gal-open")) view(it);
       };
-    } catch (e) { body.innerHTML = `<p class="muted">Галерея жүктелмеді: ${esc(String(e.code || e.message || e).slice(0, 120))}</p>`; }
+    } catch (e) {
+      console.error("[gallery] тізім қатесі:", e.code, e.message);
+      body.innerHTML = `<p class="muted">Галерея жүктелмеді: ${esc(String(e.code || e.message || e).slice(0, 120))}${e.code === "permission-denied" ? " — Firestore ережелері жарияланбаған." : ""}</p>`;
+    }
   }
 
   async function code(id) {
@@ -99,7 +124,7 @@
       <button class="btn btn--primary btn--lg glass lens" id="pub-go" type="button" disabled>${ic("spark")}Жариялау</button>`;
     let thumb = "";
     const rep = S.data.report && S.data.report.shots;
-    try { thumb = (rep && rep[0] && rep[0].u) || ((await Q.check.shots(html))[0] || {}).u || ""; } catch (e) {}
+    try { thumb = await small((rep && rep[0] && rep[0].u) || ((await Q.check.shots(html))[0] || {}).u || ""); } catch (e) {}
     $("#pub-th").innerHTML = thumb ? `<img src="${thumb}" alt="Қосымшаның шағын суреті">` : `<small class="muted">Сурет алынбады, карточка әріппен көрсетіледі.</small>`;
     const go = $("#pub-go"); go.disabled = false;
     go.onclick = async () => {
@@ -107,21 +132,29 @@
       if (!title) { toast("Атауын жаз.", "err", 2500); return; }
       go.disabled = true;
       const f = await fbOr(); if (!f) { go.disabled = false; return; }
+      let meta = null;
       try {
         const id = "g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         const u = C.user, b = f.F.writeBatch(f.db);
-        b.set(f.F.doc(f.db, "gallery", id), { uid: u.uid, name: String(u.displayName || "Қолданушы").slice(0, 60), title: title.slice(0, 80), desc: desc.slice(0, 300), thumb: thumb.slice(0, 60000), created: Date.now(), size });
+        // өрістер ережедегі hasOnly тізіміне дәл сәйкес: uid, name, title, desc, thumb, created, size
+        meta = { uid: u.uid, name: String(u.displayName || "Қолданушы").slice(0, 60), title: title.slice(0, 80), desc: desc.slice(0, 300), thumb: thumb.length <= MAX_THUMB ? thumb : "", created: Date.now(), size };
+        // gallery мен galleryCode бір batch-та: galleryCode ережесіндегі getAfter(gallery/{id}) осыны көреді
+        b.set(f.F.doc(f.db, "gallery", id), meta);
         b.set(f.F.doc(f.db, "galleryCode", id), { uid: u.uid, html });
         await b.commit();
         document.getElementById("pub").classList.remove("on");
         toast("Галереяға жарияланды!", "ok", 3000);
       } catch (e) {
         go.disabled = false;
-        toast(e.code === "permission-denied" ? "Рұқсат жоқ: Firestore ережелері әлі қойылмаған болуы мүмкін." : "Жариялау мүмкін болмады: " + String(e.message).slice(0, 100), "err", 7000);
+        const p = C.user && C.user.providerData && C.user.providerData.map((x) => x.providerId).join(",");
+        console.error("[gallery] жариялау қатесі:", e.code, e.message, { project: f.app.options.projectId, provider: p, fields: Object.keys(meta || {}), thumb: (meta && meta.thumb.length) || 0, html: html.length, size });
+        toast(e.code === "permission-denied"
+          ? "Firestore рұқсат бермеді (permission-denied). firebase/firestore.rules ішіндегі gallery/galleryCode ережелері qwq-builder жобасына жарияланғанын тексер."
+          : "Жариялау мүмкін болмады: " + String(e.code || "") + " " + String(e.message).slice(0, 100), "err", 9000);
       }
     };
   }
 
   function init() { const b = $("#d-gal"); if (b) b.onclick = open; }
-  Q.gallery = { init, open, publish };
+  Q.gallery = { init, open, publish, small };
 })(window.QWQ);
