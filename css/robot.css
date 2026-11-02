@@ -48,10 +48,20 @@
 .qwq-bubble button[hidden]{display:none}
 .qwq-skip{position:fixed;z-index:9997;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.3);
   background:rgba(20,22,30,.7);color:#fff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
-.qwq-help{position:fixed;z-index:9993;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 104px);width:48px;height:48px;border-radius:50%;
+.qwq-help{position:fixed;z-index:9993;right:16px;bottom:calc(var(--bottom-h,150px) + 14px);width:48px;height:48px;border-radius:50%;
   border:1px solid rgba(255,255,255,.35);background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.06));color:#fff;font:700 20px Inter,system-ui,sans-serif;cursor:pointer;
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 8px 24px rgba(0,0,0,.45),0 0 18px rgba(79,214,234,.35)}
 
 @media (prefers-reduced-motion:reduce){
   .qwq-float,.qwq-shadow,.qwq-glow,.qwq-spot,.qwq-robot.typing .qwq-stage{animation:none}
 }
+
+/* нұсқаулық кезінде сайтты кездейсоқ басудан қорғайтын мөлдір қабат */
+.qwq-block{position:fixed;inset:0;z-index:9989;background:transparent}
+.qwq-bubble{transition:left .45s cubic-bezier(.22,1,.36,1),top .45s cubic-bezier(.22,1,.36,1)}
+@media (prefers-reduced-motion:reduce){.qwq-bubble{transition:none}}
+/* нысанасыз (экран ортасы) қадамда фон күңгірттенеді; көпіршік кез келген фонда оқылатындай тығызырақ шыны */
+.qwq-block{transition:background .35s}
+.qwq-block.dim{background:rgba(3,5,10,.62)}
+.qwq-bubble{background:linear-gradient(145deg,rgba(44,48,64,.84),rgba(16,18,26,.88))}
+.qwq-skip.alt{right:auto;left:12px}

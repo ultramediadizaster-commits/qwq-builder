@@ -260,7 +260,8 @@
         await sleep(RM() ? 20 : 55 + Math.random() * 45);
       }
       root.classList.remove("typing");
-      if (action === "type") { action = prev; await refresh(); }
+      // жазу кезінде сөйлеу біткен болса, talk-қа қайтпаймыз
+      if (action === "type") { action = prev === "talk" && !root.classList.contains("speaking") ? null : prev; await refresh(); }
     }
 
     /** Қоштасу: қол бұлғап, кішірейіп, (x,y) нүктесіндегі «?» батырмасына айналады */

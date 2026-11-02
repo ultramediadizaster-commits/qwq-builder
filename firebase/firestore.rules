@@ -1,6 +1,6 @@
 rules_version = '2';
 // QWQ Builder:
-//  · users/{uid}/builderChats — әр пайдаланушы тек өз құжаттарын оқып-жаза алады.
+//  · users/{uid}/builderChats, users/{uid}/builderMeta — әр пайдаланушы тек өз құжаттарын оқып-жаза алады.
 //  · gallery, galleryCode — ортақ галерея: оқу — бәріне; жариялау — тек Google арқылы кіргендерге (өз uid-імен); өшіру — тек иесіне; өзгерту жоқ.
 //  · қалғанының бәріне тыйым.
 service cloud.firestore {
@@ -17,6 +17,14 @@ service cloud.firestore {
     match /users/{uid}/builderChats/{chatId} {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && validChat(chatId);
+    }
+
+    // қолданушы баптаулары (мысалы, нұсқаулық көрілді ме): тек иесі
+    match /users/{uid}/builderMeta/{doc} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && request.resource.data.keys().hasOnly(['tourDone', 'at'])
+        && request.resource.data.tourDone is bool && request.resource.data.at is number;
+      allow delete: if isOwner(uid);
     }
 
     // карточка: метадеректер + кіші сурет (тізім жеңіл болу үшін)

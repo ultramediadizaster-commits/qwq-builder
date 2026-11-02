@@ -108,6 +108,7 @@
     Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); Q.chats.init(); Q.gallery.init(); Q.cloud.init(); status(); cloudUI();
     const h = location.hash.slice(1);
     go(VIEWS.includes(h) && (h === "chat" || S.data.idea) ? h : "chat");
+    Q.tour && Q.tour.init();
     window.addEventListener("offline", () => toast("Интернет байланысы үзілді.", "err"));
     window.addEventListener("error", (e) => console.warn("QWQ:", e.message));
   }
