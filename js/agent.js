@@ -308,7 +308,7 @@
         const link = () => sc.abort(); sig.addEventListener("abort", link, { once: true });
         const timer = setTimeout(() => { timedOut = true; sc.abort(); }, 12000);
         let info = "";
-        const fbP = Q.websearch.run(idea, { signal: sig, budget: 15000 }).catch((e) => { if (e.code === "abort") throw e; return null; });   // резерв іздеу Worker-мен қатар жүреді
+        const fbP = Q.websearch.run(idea, { signal: sig, budget: 25000 }).catch((e) => { if (e.code === "abort") throw e; return null; });   // резерв іздеу Worker-мен қатар жүреді
         fbP.catch(() => {});
         try {
           const r = await Q.api.chat({
