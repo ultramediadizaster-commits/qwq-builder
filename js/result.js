@@ -91,23 +91,49 @@
     const sig = ctrl.signal;
     try {
       const cur = html();
-      const r = await Q.api.chat({
-        signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
-        message: `Төменде жұмыс істеп тұрған веб-қосымшаның толық коды берілген. Оны мына өтініш бойынша өзгерт: «${text}».\nЕсептің басқа бөлігін бұзба, интерфейс тілі қазақша қалсын. Жауапта ТЕК толық жаңартылған index.html кодын бір \`\`\`html блогымен қайтар, түсініктеме жазба.\n\n\`\`\`html\n${cur}\n\`\`\``,
-        onDelta: (_, full) => setM(byteLen(full)),
-      });
-      let code = Q.code.extractHtml(r.answer), tries = 0;
-      while (!Q.code.complete(code) && tries < 4) {
-        tries++;
-        const t = await Q.api.chat({
-          signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
-          message: `Төмендегі HTML коды үзіліп қалды. Дәл үзілген жерден ТЕК қалған кодты жалғастыр, қайталама, \`\`\` қоспа, </html> тегімен аяқта.\n\nСоңғы бөлік:\n${code.slice(-1500)}`,
-          onDelta: (_, full) => setM(byteLen(code + full)),
-        });
-        code = (code + Q.code.dedupe(code, Q.code.stripFence(t.answer))).trim();
-        const e = code.toLowerCase().lastIndexOf("</html>"); if (e >= 0) code = code.slice(0, e + 7);
+      // бір «толық HTML» сұрауы (үзілсе, жалғастырады)
+      const gen = async (message) => {
+        const r = await Q.api.chat({ signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL, message, onDelta: (_, full) => setM(byteLen(full)) });
+        let code = Q.code.extractHtml(r.answer), tries = 0;
+        while (!Q.code.complete(code) && tries < 4) {
+          tries++;
+          const t = await Q.api.chat({
+            signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
+            message: `Төмендегі HTML коды үзіліп қалды. Дәл үзілген жерден ТЕК қалған кодты жалғастыр, қайталама, \`\`\` қоспа, </html> тегімен аяқта.
+
+Соңғы бөлік:
+${code.slice(-1500)}`,
+            onDelta: (_, full) => setM(byteLen(code + full)),
+          });
+          code = (code + Q.code.dedupe(code, Q.code.stripFence(t.answer))).trim();
+          const e = code.toLowerCase().lastIndexOf("</html>"); if (e >= 0) code = code.slice(0, e + 7);
+        }
+        if (!Q.code.complete(code)) throw new Q.api.QErr("Өзгертілген код толық келмеді, ескі нұсқа сақталды. Өтінішті қысқартып қайта жазып көр.", "incomplete");
+        return code;
+      };
+      let code = await gen(`Төменде жұмыс істеп тұрған веб-қосымшаның толық коды берілген. Оны мына өтініш бойынша өзгерт: «${text}».
+Есептің басқа бөлігін бұзба, интерфейс тілі қазақша қалсын. Жауапта ТЕК толық жаңартылған index.html кодын бір \`\`\`html блогымен қайтар, түсініктеме жазба.
+
+\`\`\`html
+${cur}
+\`\`\``);
+      // өзгерткен кодты да нақты іске қосып тексереміз: бұзылса — 2 реттен артық емес түзетеміз
+      $("#busy-t").textContent = "Тексеріп жатыр…";
+      let chk = await Q.check.run(code), fixTry = 0;
+      while (chk.issues.length && fixTry < 2) {
+        fixTry++;
+        $("#busy-t").textContent = `Түзетіп жатыр… (${fixTry}/2)`;
+        code = await gen(`Төмендегі веб-қосымша «${text}» өтінішінен кейін бұзылды. Іске қосып тексергенде мына ақаулар табылды:
+${chk.issues.slice(0, 6).map((x) => "- " + x).join("\n")}
+
+Осы ақауларды түзет, өтінішті («${text}») сақта, басқа бөлігін бұзба. Жауапта ТЕК толық index.html кодын бір \`\`\`html блогымен қайтар.
+
+\`\`\`html
+${code}
+\`\`\``);
+        chk = await Q.check.run(code);
       }
-      if (!Q.code.complete(code)) throw new Q.api.QErr("Өзгертілген код толық келмеді, ескі нұсқа сақталды. Өтінішті қысқартып қайта жазып көр.", "incomplete");
+      if (chk.issues.length) throw new Q.api.QErr("Өзгеріс қосымшаны бұзды және түзету сәтсіз болды, ескі нұсқа сақталды. Өтінішті басқаша жазып көр.", "broken");
       S.data.versions.push({ html: code, note: text, t: Date.now() });
       S.data.versions = S.data.versions.slice(-20);
       S.data.verIdx = S.data.versions.length - 1;

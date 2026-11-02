@@ -1,6 +1,6 @@
 /* QWQ Builder · кілтсіз резерв іздеу: Wikipedia (kk, ru) + Jina Reader. Worker іздеуі жауап бермесе іске қосылады */
 (function (Q) {
-  const STOP = new Set("кім не деген туралы қандай қашан қайда неше маған керек қосымша жасау жасап бер үшін және мен сен the app for что такое кто как для или".split(" "));
+  const STOP = new Set("және кім не деген туралы қандай қашан қайда неше маған керек қосымша жасау жасап бер үшін және мен сен the app for что такое кто как для или".split(" "));
 
   // Тақырыптан іздеу сөздерін алу: атауы + сипаттамасы
   function keywords(idea) {
@@ -28,7 +28,7 @@
     const r = await fetch("https://r.jina.ai/" + encodeURI(decodeURI(url)), { signal, headers: { Accept: "text/plain", "X-Return-Format": "text" } });
     if (!r.ok) throw new Error("HTTP " + r.status);
     // мәзір жолдарын тастап, тек толық сөйлемдерді (≥ 50 таңба) қалдырамыз
-    const t = (await r.text()).split("\n").map((l) => l.trim()).filter((l) => l.length >= 50).join("\n");
+    const t = (await r.text()).split("\n").map((l) => l.trim()).filter((l) => l.length >= 50 && !/көрсету\/жасыру|Координаттар|Мазмұнға өту|Басқа мағыналар/.test(l)).join("\n");
     return t.slice(0, 1800);
   }
 
@@ -37,23 +37,29 @@
     const ac = new AbortController();
     const link = () => ac.abort();
     if (o.signal) { if (o.signal.aborted) throw new Q.api.QErr("Тоқтатылды.", "abort"); o.signal.addEventListener("abort", link, { once: true }); }
-    const timer = setTimeout(() => ac.abort(), o.budget || 10000);
+    const timer = setTimeout(() => ac.abort(), o.budget || 15000);
     try {
-      // Wikipedia іздеуі сөздерді "және" арқылы біріктіреді, сондықтан қысқа сұраулардан бастаймыз: атау → 2 сөз → 1 сөз
+      // Wikipedia іздеуі сөздерді "және" арқылы біріктіреді, сондықтан: атау, көрші сөз жұптары, ұзын жеке сөздер (бәрі параллель)
       const kw = keywords(idea);
-      const qs = [...new Set([String(idea.title || "").replace(/[^\p{L}\p{N}\s-]/gu, " ").trim(), kw.slice(0, 2).join(" "), kw[0]].filter(Boolean))];
-      let hits = [];
-      for (const q of qs) {
-        const lists = await Promise.allSettled([wiki("kk", q, ac.signal), wiki("ru", q, ac.signal)]);
-        lists.forEach((l) => l.status === "fulfilled" && hits.push(...l.value));
-        if (hits.length) break;
-      }
+      const title = String(idea.title || "").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
+      const pairs = kw.slice(0, 4).map((w, i) => (kw[i + 1] ? w + " " + kw[i + 1] : "")).filter(Boolean).slice(0, 3);
+      const qs = [...new Set([title, ...pairs, ...kw.filter((w) => w.length > 5).slice(0, 2)].filter(Boolean))].slice(0, 5);
+      const res = await Promise.allSettled(qs.flatMap((q) => [wiki("kk", q, ac.signal), wiki("ru", q, ac.signal)]));
+      const hits = [];
+      res.forEach((l) => l.status === "fulfilled" && hits.push(...l.value));
       if (!hits.length) return null;
+      // тақырып сөздері көбірек кездесетін беттер алда тұрады
+      const sc = (h) => kw.reduce((n, w) => n + (new RegExp(w.slice(0, Math.max(4, w.length - 2)), "i").test(h.title + " " + h.text) ? (new RegExp(w.slice(0, Math.max(4, w.length - 2)), "i").test(h.title) ? 2 : 1) : 0), 0);
+      hits.sort((a, b) => sc(b) - sc(a));
       // әр тілден үздік 2 бет, қайталанбайтындай
       const seen = new Set(), pick = [];
       for (const h of hits) if (!seen.has(h.url) && pick.filter((x) => x.lang === h.lang).length < 2) { seen.add(h.url); pick.push(h); }
       // Jina Reader арқылы табылған беттерді оқу (табылмаса, Wikipedia үзіндісі қалады)
-      const full = await Promise.allSettled(pick.map((p) => read(p.url, ac.signal)));
+      // Jina — қосымша: өз 6 с шегі бар, баяу болса Wikipedia үзіндісі қалады
+      const jac = new AbortController(), jt = setTimeout(() => jac.abort(), 6000);
+      ac.signal.addEventListener("abort", () => jac.abort(), { once: true });
+      const full = await Promise.allSettled(pick.map((p) => read(p.url, jac.signal)));
+      clearTimeout(jt);
       let nRead = 0;
       pick.forEach((p, i) => { if (full[i].status === "fulfilled" && full[i].value.length > p.text.length) { p.text = full[i].value; p.jina = true; nRead++; } });
       const text = pick.map((p) => `### ${p.title} (${p.lang})\n${p.text}\nДереккөз: ${p.url}`).join("\n\n");

@@ -75,6 +75,7 @@ async function main(){
   try{var ls=W.localStorage;["setItem","removeItem","clear"].forEach(function(k){var f=ls[k];ls[k]=function(){lsw++;return f.apply(ls,arguments)}})}catch(e){}
   W.addEventListener("submit",function(e){if(!e.defaultPrevented)e.preventDefault()});
   function nextEl(){var all=document.querySelectorAll(SEL);for(var i=0;i<all.length;i++){var el=all[i];if(!tested.has(el)&&actionable(el)&&visible(el))return el}return null}
+  for(var wv=0;wv<30&&!(W.innerWidth>0&&document.body&&document.body.getBoundingClientRect().height>0);wv++)await new Promise(function(r){setTimeout(r,100)});   // iframe өлшемі әлі 0 болса, күтеміз
   var info={text:document.body?(document.body.innerText||"").trim().length:0,kids:document.body?document.body.children.length:0,act:document.querySelectorAll(SEL).length};
   for(var n=0;n<70&&Date.now()-t0<__BUDGET__;n++){
     var el=nextEl();if(!el)break;
@@ -111,7 +112,13 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
    * run(html) → Promise<{errors, dead, stat, issues, clicked, nohandler}>
    * issues — түзетуге жіберілетін бірыңғай, түсінікті тізім (қазақша)
    */
-  function run(html) {
+  async function run(html) {
+    const r = await run1(html);
+    // батырмалар бар, бірақ біреуі де басылмаса — iframe өлшемі дайын болмаған шығар: бір рет қайталаймыз
+    if (r.act > 1 && r.clicked === 0) { const r2 = await run1(html); if (r2.clicked > 0) return r2; }
+    return r;
+  }
+  function run1(html) {
     const demo = Q.demo && Q.demo.active;
     const budget = demo ? 2500 : 7000, wait = demo ? 60 : 110, limit = budget + (demo ? 2500 : 6000);
     return new Promise((resolve) => {
@@ -135,7 +142,7 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
         if (!res) issues.push("Бет жүктелмеді немесе тексеру уақыты біттi");
         else if (res.info && !res.info.text && !res.info.kids) issues.push("Бет бос");
         else if (res.info && !res.info.act) issues.push("Басатын батырма немесе өріс жоқ");
-        resolve({ errors, dead, stat, issues, clicked: res ? res.clicked : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
+        resolve({ errors, dead, stat, issues, clicked: res ? res.clicked : 0, act: res && res.info ? res.info.act : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
       };
       const on = (e) => {
         if (e.source !== f.contentWindow || !e.data || e.data.qwq !== id || e.data.t !== "r") return;

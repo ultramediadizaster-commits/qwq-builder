@@ -308,6 +308,8 @@
         const link = () => sc.abort(); sig.addEventListener("abort", link, { once: true });
         const timer = setTimeout(() => { timedOut = true; sc.abort(); }, 12000);
         let info = "";
+        const fbP = Q.websearch.run(idea, { signal: sig, budget: 15000 }).catch((e) => { if (e.code === "abort") throw e; return null; });   // резерв іздеу Worker-мен қатар жүреді
+        fbP.catch(() => {});
         try {
           const r = await Q.api.chat({
             signal: sc.signal, web: true, stream: false, tries: 2,
@@ -324,7 +326,7 @@
           if (e.code === "abort" && !timedOut) throw e;
           // Worker іздеуі жауап бермеді → кілтсіз резерв: Wikipedia (kk, ru) + Jina Reader
           setStep("search", "active", "Резерв іздеу: Wikipedia…");
-          const fb = await Q.websearch.run(idea, { signal: sig, budget: 10000 });
+          const fb = await fbP;
           if (fb) {
             S.data.files.info = `# Жиналған мәлімет\n\n_Негізгі іздеу жауап бермеді, мәлімет Wikipedia мен Jina Reader арқылы алынды._\n\n${fb.text}\n\n## Дереккөздер\n${fb.sources.map((s) => `- [${s.title}](${s.url})`).join("\n")}\n`;
             addFileRow("info");
