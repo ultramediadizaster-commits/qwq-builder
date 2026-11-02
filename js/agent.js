@@ -74,6 +74,7 @@
           <button class="btn glass glass--flat" type="button" id="peek" ${R.active || hasHtml ? "" : "hidden"}>${ic("eye", "ico ico--sm")}${hasHtml && !R.active ? "Нәтижені ашу" : "Нәтижені бірден көру"}</button>
         </div>
       </article>
+      <article class="card glass report" id="report" hidden></article>
       <div class="files" id="files"></div>
       <article class="glass glass--dark glass--flat" id="viewer" hidden style="border-radius:var(--r-md);overflow:hidden">
         <div class="viewer-bar"><span id="v-name"></span><span style="display:flex;gap:4px"><button class="btn btn--icon btn--sm glass-none" id="v-copy" type="button" aria-label="Көшіру">${ic("copy", "ico ico--sm")}</button><button class="btn btn--icon btn--sm" id="v-close" type="button" aria-label="Жабу">${ic("x", "ico ico--sm")}</button></span></div>
@@ -94,6 +95,7 @@
     Object.keys(FILES).forEach((k) => S.data.files[k] && addFileRow(k, false));
     if (ag && !R.active) u.timer.textContent = ag.total || "00:00.0";
     if (R.active) { setRunUI(true); }
+    Q.report.render(S.data.report);
   }
   const $$files = () => Q.$$(".file").forEach((b) => b.setAttribute("aria-expanded", b.dataset.k === R.open));
 
@@ -219,6 +221,7 @@
       const sc = score(issues);
       if (best.issues === null || sc <= best.score) best = { html: code, body, js, issues, text, score: sc };
     };
+    const tv = performance.now();
     setStep("verify", "active", "Іске қосып, батырмаларды басып тексеріп жатыр…");
     // 1-айналым: нақты басып көру және AI тексеруі қатар жүреді
     const endChk = T.begin("тексеру (басу + AI)");
@@ -229,6 +232,7 @@
     endChk();
     aiIssues = ai;
     let chk = chk0;
+    const found = chk0.issues.concat(ai);
     for (;;) {
       const issues = chk.issues.concat(fixes === 0 ? aiIssues : []);
       const text = summarize(chk, fixes === 0 ? aiIssues.length : 0);
@@ -259,7 +263,8 @@
       const names = [...new Set(left.map((x) => (x.match(/«([^»]+)»/) || [])[1]).filter(Boolean))].slice(0, 3).map((x) => `«${x}»`).join(", ");
       setStep("verify", "warn", `${best.text}${names ? ": " + names : ""} — кей жерлері жұмыс істемеуі мүмкін`);
     }
-    return { html: best.html, body: best.body, js: best.js, fixes, left };
+    const report = Q.report.build({ found, left, fixes, chk, sec: (performance.now() - tv) / 1000, rounds: fixes + 1 });
+    return { html: best.html, body: best.body, js: best.js, fixes, left, report };
   }
 
   async function run() {
@@ -274,7 +279,7 @@
     setRunUI(true);
     STEPS.forEach((s) => setStep(s.k, "", s.d));
     R.ui.steps.querySelectorAll(".s-time").forEach((e) => (e.textContent = ""));
-    S.data.agent = null; S.data.share = null;
+    S.data.agent = null; S.data.share = null; S.data.report = null;
     R.t0 = performance.now();
     R.tick = setInterval(() => { R.ui.timer && (R.ui.timer.textContent = fmtTime(performance.now() - R.t0)); }, 100);
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -374,6 +379,10 @@
       const fin = await verify(out, T, sig);
       F.body = fin.body; F.js = fin.js; F.html = fin.html; addFileRow("html");
       showMini(fin.html);
+
+      S.data.report = fin.report; Q.report.render(fin.report);
+      // экрандардың шағын суреттері: фонда алынады, дайын болғанда есепке қосылады
+      Q.check.shots(fin.html).then((sh) => { fin.report.shots = sh; if (S.data.report === fin.report) { S.save(); Q.report.render(fin.report); } });
 
       /* 5. Дайын: тек тексеруден кейін */
       cur = "done";

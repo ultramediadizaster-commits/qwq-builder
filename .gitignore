@@ -5,3 +5,4 @@ node_modules/
 shots/
 .claude/
 .mcp.json
+.playwright-mcp/

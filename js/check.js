@@ -69,7 +69,7 @@ function staticIssues(){
   return out}
 
 async function main(){
-  var t0=Date.now(),dead=[],clicked=0,nohandler=0,tested=new WeakSet();
+  var t0=Date.now(),dead=[],btns=[],clicked=0,nohandler=0,tested=new WeakSet();
   var stat=staticIssues();
   try{new MutationObserver(function(r){mut+=r.length}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,characterData:true})}catch(e){}
   try{var ls=W.localStorage;["setItem","removeItem","clear"].forEach(function(k){var f=ls[k];ls[k]=function(){lsw++;return f.apply(ls,arguments)}})}catch(e){}
@@ -87,9 +87,11 @@ async function main(){
     try{el.click()}catch(e){err("click: "+e.message)}
     await sleep(__WAIT__);
     var eff=mut>m0||lsw>l0||dlg>d0||location.hash!==h0;
-    if(!eff&&errs.length===e0)dead.push({label:label(el),sel:sel(el),handler:hh});
+    var bad=errs.length>e0;
+    if(!eff&&!bad)dead.push({label:label(el),sel:sel(el),handler:hh});
+    btns.push({l:label(el),ok:eff&&!bad,n:bad?"қате":!eff?"әрекет жоқ":""});
     ctx=null;clicked++}
-  post("r",JSON.stringify({errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info}))}
+  post("r",JSON.stringify({errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info,btns:btns}))}
 function start(){main().catch(function(e){err("тексеру: "+e.message);post("r",JSON.stringify({errs:errs,dead:[],stat:[],clicked:0,nohandler:0,info:null}))})}
 if(document.readyState==="complete")setTimeout(start,350);else W.addEventListener("load",function(){setTimeout(start,350)});
 })()`;
@@ -133,7 +135,7 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
         if (!res) issues.push("Бет жүктелмеді немесе тексеру уақыты біттi");
         else if (res.info && !res.info.text && !res.info.kids) issues.push("Бет бос");
         else if (res.info && !res.info.act) issues.push("Басатын батырма немесе өріс жоқ");
-        resolve({ errors, dead, stat, issues, clicked: res ? res.clicked : 0, nohandler: res ? res.nohandler : 0 });
+        resolve({ errors, dead, stat, issues, clicked: res ? res.clicked : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
       };
       const on = (e) => {
         if (e.source !== f.contentWindow || !e.data || e.data.qwq !== id || e.data.t !== "r") return;
@@ -148,5 +150,53 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
     });
   }
 
-  Q.check = { run, preview };
+  /* ---------- экрандардың шағын суреттері: sandbox iframe-дің ІШІНДЕ DOM → SVG foreignObject → canvas.
+     html2canvas қолданылмады: ол өз iframe-ін ашады, ал opaque-origin sandbox оған рұқсат бермейді ---------- */
+  const SHOTS = String.raw`(function(){
+var I=__ID__,W=window,post=function(t,m){try{parent.postMessage({qwq:I,t:t,m:m},"*")}catch(e){}};
+function sleep(ms){return new Promise(function(r){var c=new MessageChannel(),n=0;c.port1.onmessage=function(){if(++n>=ms)r();else c.port2.postMessage(0)};c.port2.postMessage(0)})}
+function label(el){return(el.getAttribute("aria-label")||el.textContent||el.id||"Экран").replace(/\s+/g," ").trim().slice(0,22)}
+function css(){var t="";[].forEach.call(document.styleSheets,function(s){try{[].forEach.call(s.cssRules,function(r){t+=r.cssText+"\n"})}catch(e){}});return t}
+function snap(){return new Promise(function(res,rej){
+  var w=390,h=700,root=document.documentElement.cloneNode(true);
+  [].forEach.call(root.querySelectorAll("script,iframe"),function(n){n.remove()});
+  var inputs=document.querySelectorAll("input,textarea"),ci=root.querySelectorAll("input,textarea");
+  [].forEach.call(inputs,function(el,i){if(ci[i]){ci[i].setAttribute("value",el.value);if(el.tagName==="TEXTAREA")ci[i].textContent=el.value}});
+  var st=document.createElement("style");st.textContent=css()+"html,body{margin:0;width:"+w+"px;min-height:"+h+"px}*{animation:none!important;transition:none!important}";
+  root.querySelector("head").appendChild(st);
+  var xml=new XMLSerializer().serializeToString(root);
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'"><foreignObject width="100%" height="100%">'+xml+'</foreignObject></svg>';
+  var img=new Image();img.onload=function(){try{var c=document.createElement("canvas");c.width=w*.45;c.height=h*.45;var x=c.getContext("2d");x.fillStyle=getComputedStyle(document.body).backgroundColor||"#000";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.7))}catch(e){rej(e)}};
+  img.onerror=function(){rej(new Error("svg"))};
+  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)})}
+async function main(){
+  var out=[];
+  async function shot(name){try{out.push({n:name,u:await snap()})}catch(e){post("d",String(e&&e.message||e))}}
+  await shot("Басты экран");
+  var tabs=[].filter.call(document.querySelectorAll("[data-go]"),function(el){var t=document.getElementById(el.dataset.go);return t&&!t.classList.contains("on")}).slice(0,3);
+  for(var i=0;i<tabs.length&&out.length<4;i++){try{tabs[i].click()}catch(e){}await sleep(40);await shot(label(tabs[i]))}
+  post("s",JSON.stringify(out))}
+if(document.readyState==="complete")setTimeout(function(){main().catch(function(){post("s","[]")})},300);else W.addEventListener("load",function(){setTimeout(function(){main().catch(function(){post("s","[]")})},300)});
+})()`;
+  /** shots(html) → Promise<[{n, u}]> (суретті алу мүмкін болмаса — бос тізім) */
+  function shots(html) {
+    return new Promise((resolve) => {
+      const id = ++seq; let done = false;
+      const f = document.createElement("iframe");
+      f.setAttribute("sandbox", "allow-scripts allow-forms"); f.setAttribute("aria-hidden", "true"); f.tabIndex = -1;
+      f.style.cssText = "position:fixed;left:0;top:0;width:390px;height:800px;border:0;opacity:.001;pointer-events:none;z-index:-1";
+      const end = (v) => { if (done) return; done = true; removeEventListener("message", on); clearTimeout(timer); f.remove(); resolve(v); };
+      const on = (e) => {
+        if (e.source !== f.contentWindow || !e.data || e.data.qwq !== id || e.data.t !== "s") return;
+        let v = []; try { v = JSON.parse(e.data.m); } catch (x) {}
+        end(v);
+      };
+      const timer = setTimeout(() => end([]), 15000);
+      addEventListener("message", on);
+      f.srcdoc = withHead(html, SHIM + "<script>" + SHOTS.replace("__ID__", id) + "<\/script>");
+      document.body.appendChild(f);
+    });
+  }
+
+  Q.check = { run, preview, shots };
 })(window.QWQ);

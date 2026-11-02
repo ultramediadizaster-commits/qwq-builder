@@ -247,3 +247,25 @@
 @media (max-width:380px){
   .nav button{font-size:11px}
 }
+
+/* ---------- Тест есебі ---------- */
+.report{margin-top:14px;animation:msgIn .5s var(--spring) both}
+.rp-badge{font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;background:rgba(48,209,88,.16);color:#7be495;border:1px solid rgba(48,209,88,.34)}
+.rp-badge.warn{background:rgba(255,214,10,.14);color:#ffe36e;border-color:rgba(255,214,10,.34)}
+.rp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:14px 0 6px}
+.rp-stats div{padding:11px 12px;border-radius:var(--r-md);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.rp-stats b{display:block;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.rp-stats span{font-size:12px;color:var(--text-3)}
+.rp-sec{margin-top:10px}
+.rp-sec summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;color:var(--text-2)}
+.rp-btns,.rp-errs{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px}
+.rp-btns li,.rp-errs li{display:flex;gap:9px;align-items:baseline;font-size:13.5px;line-height:1.45;padding:7px 10px;border-radius:var(--r-sm);background:rgba(255,255,255,.04);overflow-wrap:anywhere}
+.rp-btns em{margin-left:auto;font-style:normal;font-size:12px;color:var(--text-3)}
+.rp-mk{font-weight:800;flex:none}
+.ok .rp-mk,.fx .rp-mk{color:var(--green)}
+.no .rp-mk,.lf .rp-mk{color:var(--red)}
+.rp-none{margin:6px 0 0;font-size:13.5px;color:var(--text-3)}
+.rp-shots{display:flex;gap:12px;overflow-x:auto;margin-top:14px;padding-bottom:6px;scroll-snap-type:x proximity}
+.rp-shots figure{margin:0;flex:none;scroll-snap-align:start;text-align:center}
+.rp-shots img{display:block;height:170px;width:auto;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.16);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.rp-shots figcaption{margin-top:6px;font-size:12px;color:var(--text-3)}
