@@ -149,7 +149,7 @@
         const p = C.user && C.user.providerData && C.user.providerData.map((x) => x.providerId).join(",");
         console.error("[gallery] жариялау қатесі:", e.code, e.message, { project: f.app.options.projectId, provider: p, fields: Object.keys(meta || {}), thumb: (meta && meta.thumb.length) || 0, html: html.length, size });
         toast(e.code === "permission-denied"
-          ? "Firestore рұқсат бермеді (permission-denied). firebase/firestore.rules ішіндегі gallery/galleryCode ережелері qwq-builder жобасына жарияланғанын тексер."
+          ? "Firestore рұқсат бермеді (permission-denied). firebase/firestore.rules ішіндегі gallery/galleryCode ережелері ${f.app.options.projectId} жобасына жарияланғанын тексер."
           : "Жариялау мүмкін болмады: " + String(e.code || "") + " " + String(e.message).slice(0, 100), "err", 9000);
       }
     };

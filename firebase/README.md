@@ -1,6 +1,6 @@
 # Firebase (Google арқылы кіру + синхрон)
 
-QWQ Builder өз жеке Firebase жобасын қолданады: **qwq-builder**
+QWQ Builder өз жеке Firebase жобасын қолданады: **qwq-builder-2**
 (Auth — Google, Firestore — `users/{uid}/builderChats/{chatId}`). Басқа жобалармен байланысы жоқ.
 
 ## 1. Firebase консолінде (бір рет)
@@ -12,14 +12,15 @@ QWQ Builder өз жеке Firebase жобасын қолданады: **qwq-buil
 
 ## 2. Firestore ережелері
 
-`firestore.rules` — тек `users/{uid}/builderChats/{chatId}`: әр пайдаланушы тек өз құжаттарын оқиды/жазады, қалғанына тыйым.
+`firestore.rules`: `users/{uid}/builderChats`, `users/{uid}/builderMeta` — әр пайдаланушы тек өз құжаттарын оқиды/жазады;
+`gallery`, `galleryCode` — ортақ галерея (оқу — бәріне, жариялау — Google арқылы кіргенге); қалғанына тыйым.
 
-Деплой (қолданушының аккаунты `qwq-builder` жобасының иесі/редакторы болуы керек):
+Деплой (қолданушының аккаунты `qwq-builder-2` жобасының иесі/редакторы болуы керек):
 
 ```bash
 cd firebase
-firebase login:add            # qwq-builder жобасы жасалған Google аккаунтымен
-firebase deploy --only firestore:rules --project qwq-builder
+firebase login:add            # qwq-builder-2 жобасы жасалған Google аккаунтымен
+firebase deploy --only firestore:rules --project qwq-builder-2
 ```
 
 Немесе қолмен: Firebase консолі → Firestore Database → **Rules** → `firestore.rules` мазмұнын қойып → **Publish**.
@@ -29,7 +30,7 @@ firebase deploy --only firestore:rules --project qwq-builder
 
 ## Деректер қайда сақталады
 
-- Кірмесе: тек осы құрылғының браузері (IndexedDB `qwq-builder`).
+- Кірмесе: тек осы құрылғының браузері (IndexedDB `qwq-builder` — браузердегі дерекқор аты, Firebase жобасына қатысы жоқ).
 - Кірсе: сол чаттар `users/{uid}/builderChats/{chatId}` құжаттарына синхрондалады (құжат ≤ 900 КБ).
   Чат құжатында хабарламалар, идея, файлдар (жоспар, мәлімет, index.html, бөліктер), нәтиже, агент қадамдары, QR сілтемесі бар.
   QWQ API кілті бұлтқа **жіберілмейді**.
