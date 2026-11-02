@@ -269,3 +269,26 @@
 .rp-shots figure{margin:0;flex:none;scroll-snap-align:start;text-align:center}
 .rp-shots img{display:block;height:170px;width:auto;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.16);box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .rp-shots figcaption{margin-top:6px;font-size:12px;color:var(--text-3)}
+
+/* ---------- Нәтиже: қосымша панельдер, түсіндірме, нұсқалар ---------- */
+.res-bar2{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.sheet.wide{width:min(100%,720px)}
+.sh-body{display:grid;gap:12px}
+.ex-sec{padding:14px;border-radius:var(--r-md);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.ex-txt{display:flex;gap:12px;align-items:flex-start}
+.ex-n{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:linear-gradient(145deg,rgba(90,200,250,.5),rgba(10,132,255,.35))}
+.ex-txt h3{margin:3px 0 4px;font-size:16px}
+.ex-txt p{margin:0;font-size:14.5px;line-height:1.6;color:var(--text-2)}
+.ex-code{margin:12px 0 0;max-height:260px;overflow:auto;font-size:12.5px;border-radius:var(--r-sm)}
+.ver-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ver-list li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--r-md);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.ver-list li.cur{border-color:rgba(90,200,250,.55);background:rgba(90,200,250,.1)}
+.ver-list li div{display:grid;gap:2px;min-width:0}
+.ver-list b{font-size:14px}
+.ver-list span{font-size:13.5px;color:var(--text-2);overflow-wrap:anywhere}
+.ver-list small{font-size:12px;color:var(--text-3)}
+.sheet.wide{box-sizing:border-box;overflow-x:hidden}
+.sh-body{grid-template-columns:minmax(0,1fr)}
+.ex-txt>div{min-width:0}
+.ex-txt p,.ex-txt h3{overflow-wrap:anywhere}
+.ex-code{max-width:100%;white-space:pre;box-sizing:border-box}

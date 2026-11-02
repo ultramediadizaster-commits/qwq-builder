@@ -57,6 +57,10 @@ show();renderHist();`;
       else if (/әзірлеу жоспарын/.test(m)) ans = PLAN;
       else if (o.web && (() => { try { return localStorage.getItem("qwq.demo.web") === "502"; } catch (e) { return false; } })()) throw new Q.api.QErr("QWQ сервері жауап бермеді (502).", "http", false); // тест: Worker іздеуінің 502 қатесін имитациялау
       else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
+      else if (/ТҮСІНДІРУ ЖАУАП ФОРМАТЫ/.test(m)) ans = JSON.stringify({ sections: [
+        { title: "Құрылым (HTML)", text: "HTML — беттің қаңқасы. Мұнда тақырып, карточка және батырмалар орналасқан.", code: '<button class="btn primary grow" id="yes">Білемін</button>' },
+        { title: "Дизайн (CSS)", text: "CSS беттің түсін, өлшемін және жұмсақ бұрыштарын белгілейді.", code: ":root{--accent:#0a84ff}" },
+        { title: "Функция: show()", text: "Бұл функция экрандағы сөзді және прогресс жолағын жаңартады.", code: 'function show(){ $("#w").textContent=q[0][0]; }' }] });
       else if (/Әр функция толық жасалған ба/.test(m)) ans = '{"ok":true,"problems":[]}';
       else if (/"find"/.test(m)) ans = JSON.stringify([{ find: "renderStats();", replace: "" }, { append: "$('#share').addEventListener('click', function(){ toast('Сілтеме көшірілді'); });" }]); // JS қатесі + өлі батырма патчы
       else if (/ақаулар табылды/.test(m)) ans = ["```js", JS, "```"].join("\n");                       // JS-ті толық қайта жазу

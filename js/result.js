@@ -30,6 +30,10 @@
           <button class="btn btn--icon glass glass--flat" id="t-win" type="button" aria-label="Жаңа терезеде ашу" title="Жаңа терезеде ашу">${ic("ext", "ico ico--sm")}</button>
         </div>
       </div>
+      <div class="res-bar2">
+        <button class="btn btn--sm glass glass--flat" id="t-how" type="button">${ic("code", "ico ico--sm")}Қалай жұмыс істейді?</button>
+        <button class="btn btn--sm glass glass--flat" id="t-ver" type="button">${ic("undo", "ico ico--sm")}Нұсқалар <span id="ver-n"></span></button>
+      </div>
       <div class="stage" id="stage"><div class="frame-box" id="fb"><iframe id="frame" title="Дайын қосымша" sandbox="${SANDBOX}" referrerpolicy="no-referrer"></iframe></div>
         <div class="busy" id="busy" hidden><div class="ring"></div><div id="busy-t">Өзгертіп жатыр…</div><small id="busy-m"></small><button class="btn btn--sm glass glass--flat" type="button" id="busy-stop">Тоқтату</button></div>
       </div>`;
@@ -37,6 +41,8 @@
     ui.frame.srcdoc = Q.check.preview(html());
     $$seg().forEach((b) => (b.onclick = () => { mode = b.dataset.m; $$seg().forEach((x) => x.setAttribute("aria-selected", x === b)); fit(); }));
     $("#t-undo").onclick = undo;
+    $("#t-how").onclick = () => Q.sheets.explain();
+    $("#t-ver").onclick = () => Q.sheets.versions();
     $("#t-html").onclick = dlHtml;
     $("#t-zip").onclick = dlZip;
     $("#t-win").onclick = openWin;
@@ -102,8 +108,9 @@
         const e = code.toLowerCase().lastIndexOf("</html>"); if (e >= 0) code = code.slice(0, e + 7);
       }
       if (!Q.code.complete(code)) throw new Q.api.QErr("Өзгертілген код толық келмеді, ескі нұсқа сақталды. Өтінішті қысқартып қайта жазып көр.", "incomplete");
-      S.data.versions.push({ html: code, note: text });
-      S.data.versions = S.data.versions.slice(-6);
+      S.data.versions.push({ html: code, note: text, t: Date.now() });
+      S.data.versions = S.data.versions.slice(-20);
+      S.data.verIdx = S.data.versions.length - 1;
       S.data.files.html = code; S.save();
       ui.frame.srcdoc = Q.check.preview(code); undoState();
       toast("Дайын", "ok", 2000);
@@ -115,14 +122,19 @@
       busy = false; ctrl = null; if (ui.busy) ui.busy.hidden = true;
     }
   }
-  function undoState() { const b = $("#t-undo"); if (b) b.disabled = S.data.versions.length < 2; }
-  function undo() {
-    if (S.data.versions.length < 2) return;
-    S.data.versions.pop();
-    S.data.files.html = S.data.versions[S.data.versions.length - 1].html;
-    S.save(); ui.frame.srcdoc = Q.check.preview(html()); undoState();
-    toast("Алдыңғы нұсқаға оралды.", "ok", 2500);
+  /** Ағымдағы нұсқа индексі (тізім өшпейді: кез келген нұсқаға қайтуға болады) */
+  function verIdx() { const n = S.data.versions.length, i = S.data.verIdx; return Number.isInteger(i) && i >= 0 && i < n ? i : n - 1; }
+  function undoState() {
+    const b = $("#t-undo"); if (b) b.disabled = verIdx() < 1;
+    const n = $("#ver-n"); if (n) n.textContent = S.data.versions.length > 1 ? `(${S.data.versions.length})` : "";
   }
+  function select(i) {
+    const v = S.data.versions[i]; if (!v) return;
+    S.data.verIdx = i; S.data.files.html = v.html;
+    S.save(); if (ui.frame) ui.frame.srcdoc = Q.check.preview(html()); undoState();
+    toast(`${i + 1}-нұсқаға оралды.`, "ok", 2500);
+  }
+  function undo() { if (verIdx() > 0) select(verIdx() - 1); }
 
   /* ---------- жүктеу ---------- */
   const slug = () => (S.data.idea?.title || "qosymsha").toLowerCase().replace(/[^a-z0-9а-яәғқңөұүһі]+/gi, "-").replace(/^-|-$/g, "") || "qosymsha";
@@ -163,5 +175,5 @@
     render();
   }
 
-  Q.result = { init, refresh, fit, tweak, getHtml: html };
+  Q.result = { init, refresh, fit, tweak, getHtml: html, verIdx, select };
 })(window.QWQ);

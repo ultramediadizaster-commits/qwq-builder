@@ -386,7 +386,7 @@
 
       /* 5. Дайын: тек тексеруден кейін */
       cur = "done";
-      S.data.versions = [{ html: fin.html, note: fin.fixes ? "Автотүзетілген нұсқа" : "Бастапқы нұсқа" }];
+      S.data.versions = [{ html: fin.html, note: fin.fixes ? "Автотүзетілген нұсқа" : "Бастапқы нұсқа", t: Date.now() }]; S.data.verIdx = 0; S.data.explain = null;
       S.save();
       setStep("done", "done", "");
       clearInterval(R.tick); R.ui.timer.textContent = fmtTime(performance.now() - R.t0);
