@@ -8,7 +8,7 @@
   const SPRING = "cubic-bezier(.34,1.56,.64,1)";
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const STATES = ["idle", "happy", "thinking", "surprised", "point", "wave", "talk", "fly", "type"];
-  const EMO = { normal: "idle", happy: "happy", thinking: "thinking", surprised: "surprised" };
+  const EMO = { normal: "idle", happy: "happy", thinking: "thinking", surprised: "surprised", talk: "talk" };
 
   /* ---------- дыбыс: пернетақта шерту (WebAudio, файлсыз) ---------- */
   let AC = null;
@@ -135,7 +135,7 @@
         kf.push({ transform: `translate(${p.x - s / 2}px, ${p.y - s * 0.55}px) rotate(${r}deg)`, offset: t });
       }
       trail(pt, s);
-      const dur = Math.min(1100, 420 + dist * 0.9);
+      const dur = Math.min(800, 320 + dist * 0.55);
       await root.animate(kf, { duration: dur, easing: "cubic-bezier(.45,0,.2,1)" }).finished.catch(() => {});
       place(x, y);
       // қонғанда серпімді тербеліс (spring)
@@ -197,10 +197,12 @@
         if (action === "talk") { action = prevAction === "talk" ? null : prevAction; refresh(); }
         o.onEnd && o.onEnd(); resolveDone();
       };
-      const now = () => (audio && !muted ? audio.currentTime : acc + (paused ? 0 : (performance.now() - t0) / 1000));
+      const rate = o.rate || 1;   // сынау үшін: дыбыссыз режимді жылдамдату
+      const now = () => (audio && !muted ? audio.currentTime : acc + (paused ? 0 : (performance.now() - t0) / 1000 * rate));
       const tick = () => {
         if (stopped) return;
         const t = now();
+        if (o.onTick) o.onTick(t);
         if (cues) {
           const i = cues.findIndex((c) => t >= c.start && t < c.end + 0.05);
           const j = i < 0 ? cues.filter((c) => c.start <= t).length - 1 : i;

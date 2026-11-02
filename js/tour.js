@@ -96,6 +96,7 @@
     u.pause.textContent = "⏸ Тоқтату";
     u.next.textContent = last ? "Бастау!" : "Әрі қарай →";
     if (!speaking) u.next.focus({ preventScroll: true });
+    layout(T.el, false);   // батырмалар шыққанда көпіршік биіктейді — орнын қайта есептейміз
   }
   function setText(s) {
     const t = T.ui.t;
@@ -145,65 +146,128 @@
   }
 
   /** «a|b» — бірінші көрінетін элемент; null — экран ортасы */
+  const visible = (e) => e && e.getBoundingClientRect().width > 0;
   const resolve = (sel) => {
     if (!sel) return null;
-    for (const q of sel.split("|")) { const e = document.querySelector(q); if (e && e.getBoundingClientRect().width > 0) return e; }
-    return document.querySelector(sel.split("|")[0]);
+    for (const q of sel.split("|")) { const e = document.querySelector(q); if (visible(e)) return e; }
+    return null;
   };
   function inView(el) { const r = el.getBoundingClientRect(); return r.top >= 60 && r.bottom <= innerHeight - 40; }
 
-  async function focus(step, ti, tok) {
-    const sel = (step.target || [])[ti];
-    let el = resolve(sel);
-    if (el && el.closest("#drawer") && !$("#drawer").classList.contains("on")) { Q.chats.open(); await sleep(450); el = resolve(sel); }
+  /* ---------- бөлімдерді ашу/жабу (нұсқаулық сөзіне қарай) ---------- */
+  function demoQr() {
+    const url = "https://qwq-share.mirasnrmatov.workers.dev/s/demo";
+    try {
+      const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+      const n = qr.getModuleCount(), m = 4, size = n + m * 2; let d = "";
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+      $("#qr-img").innerHTML = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" role="img" aria-label="QR код"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+    } catch (e) {}
+    $("#qr-url").textContent = url;
+    $("#qr-load").hidden = true; $("#qr-body").hidden = false;
+    $("#qr").classList.add("on");
+  }
+  async function open(what) {
+    if (!what) return;
+    if (what === "drawer" && !$("#drawer").classList.contains("on")) { Q.chats.open(); await sleep(420); }
+    else if (what === "settings" && !$("#settings").classList.contains("on")) { $("#settings").classList.add("on"); await sleep(420); }   // openSettings емес: ол кілт өрісіне фокус береді (телефонда пернетақта ашылады)
+    else if (what === "qr" && !$("#qr").classList.contains("on")) { demoQr(); await sleep(420); }
+    else if (what === "prompt") { const tp = $("#tp"); if (tp && tp.getAttribute("aria-expanded") !== "true") { tp.click(); await sleep(200); } }
+    else if (what.startsWith("more")) {
+      const need = what.split(":")[1];
+      if (need && visible($(need))) return;
+      const mm = $("#more-menu"); if (mm && mm.hidden) { $("#t-more").click(); await sleep(250); }
+    }
+  }
+  function closeAll() {
+    if ($("#drawer").classList.contains("on")) Q.chats.close();
+    ["#settings", "#qr"].forEach((s) => { const e = $(s); if (e) e.classList.remove("on"); });
+    const mm = $("#more-menu"); if (mm && !mm.hidden) { mm.hidden = true; $("#t-more").setAttribute("aria-expanded", "false"); }
+    const tp = $("#tp"); if (tp && tp.getAttribute("aria-expanded") === "true") tp.click();
+  }
+
+  /** Бір сәт: керек экран/бөлім → нысанаға ұшу → (жаңа болса) таңғалу → көрсету → эмоция */
+  async function beat(b, step, tok) {
+    const R = T.robot;
+    if (b.close) closeAll();
+    if (b.view && Q.view !== b.view) { closeAll(); Q.go(b.view); await sleep(320); }
+    if (b.label) for (const [sel, txt] of Object.entries(b.label)) { const e = $(sel); if (e) { const icon = e.querySelector("svg"); e.innerHTML = (icon ? icon.outerHTML : "") + esc(txt); } }
+    await open(b.open);
     if (tok !== T.tok) return;
-    if (el && !inView(el)) { el.scrollIntoView({ block: "center", behavior: "smooth" }); await sleep(450); }
+    const el = resolve(b.t);
+    T.log.push({ i: T.i, c: b.c, t: b.t, found: !b.t || !!el, at: Math.round(b.at * 10) / 10 });   // сынау журналы (Q.tour.log)
+    if (el !== T.el || !el) {
+      if (el && !inView(el)) { el.scrollIntoView({ block: "center", behavior: "auto" }); await sleep(120); }
+      T.el = el;
+      T.ui.block.classList.toggle("dim", !el);
+      R.relax();
+      R.highlight(el);
+      // «Өткізіп жіберу» нысананы жаппасын: тиіп тұрса, сол жақ бұрышқа ауысады
+      const sk = T.ui.skip; sk.classList.remove("alt");
+      if (el && !el.classList.contains("qwq-skip")) { const a = sk.getBoundingClientRect(), r = el.getBoundingClientRect(); if (!(a.right < r.left || r.right < a.left || a.bottom < r.top || r.bottom < a.top)) sk.classList.add("alt"); }
+      await layout(el);
+      if (tok !== T.tok) return;
+      if (b.wow) { await R.emotion("surprised"); await sleep(650); if (tok !== T.tok) return; }
+      if (el) { await R.pointAt(el); await sleep(650); if (tok !== T.tok) return; R.relax(); }
+    } else if (b.wow) { await R.emotion("surprised"); await sleep(600); }
     if (tok !== T.tok) return;
-    T.el = el; T.ti = ti;
-    T.ui.block.classList.toggle("dim", !el);
-    T.robot.relax();
-    T.robot.highlight(el);
-    // «Өткізіп жіберу» нысананы жаппасын: тиіп тұрса, сол жақ бұрышқа ауысады
-    const sk = T.ui.skip; sk.classList.remove("alt");
-    if (el) { const a = sk.getBoundingClientRect(), r = el.getBoundingClientRect(); if (!(a.right < r.left || r.right < a.left || a.bottom < r.top || r.bottom < a.top)) sk.classList.add("alt"); }
-    await layout(el);
-    if (tok !== T.tok) return;
-    if (el) await T.robot.pointAt(el);
+    // сөйлеп тұрғанда «қалыпты» күй — түсіндіріп тұрған қимыл (talk)
+    R.emotion(b.e === "normal" || !b.e ? (T.sp ? "talk" : "normal") : b.e);
+    if (b.act === "type") R.typeInto($("#input"), step.typeText);
+    if (b.act === "wave") R.wave(1);
   }
 
   /* ---------- қадам ---------- */
+  const LEAD = 1.1;   // жаңа нысанаға сөйлемнен бұрын ұшып жетеді (секунд)
   async function go(i) {
     if (!T || i < 0 || i >= STEPS.length) return;
     const tok = ++T.tok, st = STEPS[i], R = T.robot;
-    T.i = i; T.typed = false;
+    const beats = ((Q.onboardingBeats || [])[i] || [{ c: 0, t: null, e: st.emotion || "normal" }]).map((b) => Object.assign({ done: false }, b));
+    T.i = i;
     if (T.sp) { T.sp.stop(); T.sp = null; }
     R.unhighlight(); R.relax();
-    if (!st.drawer && $("#drawer").classList.contains("on")) Q.chats.close();
-    if (st.view && Q.view !== st.view) { Q.go(st.view); await sleep(350); }
+    closeAll();
     if (i === 1) { $("#input").value = ""; $("#input").dispatchEvent(new Event("input")); }
-    if (tok !== T.tok) return;
     T.ui.step.textContent = `${i + 1} / ${STEPS.length} · ${st.t}`;
-    // демода қосымша дайын тұрғандықтан батырма «Қайта жасау» деп жазылады; нұсқаулықта ол «Агентке жіберу» болып көрінсін
-    if (st.demo === "idea") { const g = $("#go-agent"); if (g) g.innerHTML = `${Q.ic("spark")}Агентке жіберу`; }
     T.ui.t.textContent = "";
     controls(true);
-    R.emotion(st.emotion || "normal");
-    await focus(st, 0, tok);
+    // сөйлем уақыттары (VTT) — сәттерді дәл сөйлемге байлау үшін
+    let cues = null;
+    try { cues = QWQRobot.parseVtt(await (await fetch(`audio/onboarding/${nn(i)}.vtt`)).text()); } catch (e) {}
+    if (!cues || !cues.length) cues = QWQRobot.splitText(st.text);
     if (tok !== T.tok) return;
-    const targets = (st.target || []).length;
-    T.sp = R.speak({
-      audio: `audio/onboarding/${nn(i)}.mp3`, vtt: `audio/onboarding/${nn(i)}.vtt`, text: st.text, muted: T.muted,
-      onCue: (c, j, n) => {
-        if (tok !== T.tok) return;
-        setText(c.text);
-        // мәтін бойымен келесі нысанаға өту («сосын …»)
-        const ti = targets > 1 ? Math.min(targets - 1, Math.floor((j / n) * targets)) : 0;
-        if (ti !== T.ti) focus(st, ti, tok);
-        if (st.emotion2 && j >= n / 2) R.emotion(st.emotion2);
-        if (st.act === "type" && !T.typed && /Маған сабақ/.test(c.text)) { T.typed = true; R.typeInto($("#input"), st.typeText); }
-      },
-      onEnd: () => { if (tok !== T.tok) return; T.sp = null; controls(false); if (st.act === "bye") R.wave(1); },
+    beats.forEach((b) => {
+      const c = cues[Math.min(b.c, cues.length - 1)];
+      b.at = Math.max(0, c.start - (b.t !== undefined ? LEAD : 0));
     });
+    // алғашқы сәт сөйлеу басталмай тұрып орындалады
+    const first = beats.filter((b) => b.c === 0);
+    first.forEach((b) => (b.done = true));
+    for (const b of first) { await beat(b, st, tok); if (tok !== T.tok) return; }
+    // қалғандары: уақыты келгенде кезекпен; бірнешеуі қатар келсе — бөлімдерін ашып, соңғысына ғана ұшады
+    let chain = Promise.resolve();
+    const due = (t) => {
+      const ready = beats.filter((b) => !b.done && t >= b.at);
+      if (!ready.length) return;
+      ready.forEach((b) => (b.done = true));
+      chain = chain.then(async () => {
+        if (tok !== T.tok) return;
+        for (const b of ready.slice(0, -1)) { if (b.view && Q.view !== b.view) { closeAll(); Q.go(b.view); } await open(b.open); }
+        await beat(ready[ready.length - 1], st, tok);
+      });
+    };
+    T.sp = R.speak({
+      audio: `audio/onboarding/${nn(i)}.mp3`, cues, text: st.text, muted: T.muted, pose: false,
+      rate: T.rate || 1,
+      onTick: (t) => { if (tok === T.tok) due(t); },
+      onCue: (c) => { if (tok === T.tok) setText(c.text); },
+      onEnd: () => {
+        if (tok !== T.tok) return;
+        T.sp = null; due(1e9);
+        chain.then(() => { if (tok !== T.tok) return; controls(false); if (R.state === "talk") R.emotion("normal"); });
+      },
+    });
+    if (R.state === "idle") R.emotion("talk");
   }
 
   /* ---------- бастау / аяқтау ---------- */
@@ -212,7 +276,7 @@
     if (Q.chat.isBusy() || Q.code.isRunning()) { Q.toast("Жұмыс аяқталғанша күте тұр", "err", 3000); return; }
     if (help) { help.remove(); help = null; }
     document.querySelectorAll(".scrim.on").forEach((x) => x.classList.remove("on"));
-    T = { i: 0, tok: 0, muted: ls.get(K_MUTE) === "1", robot: QWQRobot.create(document.body), sp: null };
+    T = { i: 0, tok: 0, log: [], muted: ls.get(K_MUTE) === "1", robot: QWQRobot.create(document.body), sp: null };
     enterDemo();
     buildUI();
     T.key = (e) => { if (e.key === "Escape") end(true); };
@@ -229,7 +293,7 @@
     document.removeEventListener("keydown", t.key); removeEventListener("resize", t.rs);
     t.ui.b.remove(); t.ui.skip.remove();
     t.robot.unhighlight();
-    if ($("#drawer").classList.contains("on")) Q.chats.close();
+    closeAll();
     const hp = helpPos();
     await t.robot.bye(hp.x, hp.y);
     t.ui.block.remove();
@@ -291,5 +355,5 @@
   }
 
   // goto/skipSpeech — сынау мен консоль үшін
-  Q.tour = { init, start, end, goto: (i) => go(i), skipSpeech: () => T && T.sp && T.sp.stop(), get active() { return !!T; }, get step() { return T ? T.i : -1; } };
+  Q.tour = { init, start, end, goto: (i) => go(i), setRate: (r) => { if (T) T.rate = r; }, skipSpeech: () => T && T.sp && T.sp.stop(), get active() { return !!T; }, get log() { return T ? T.log : []; }, get step() { return T ? T.i : -1; } };
 })(window.QWQ);
