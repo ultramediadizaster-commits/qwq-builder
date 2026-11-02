@@ -66,6 +66,11 @@ var W=window;
 W.$=function(s,r){return(r||document).querySelector(s)};
 W.$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 W.store={get:function(k,d){try{var v=localStorage.getItem("app_"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:function(k,v){try{localStorage.setItem("app_"+k,JSON.stringify(v))}catch(e){}}};
+/* cloud: ортақ бұлттық деректер (бірнеше адам бірге қолданады). Бөлісілген сілтемеде бұлтқа, басқа жерде localStorage-қа жазады. Барлығы Promise қайтарады */
+W.cloud={_b:function(){var c=W.__QWQ_CLOUD;return c&&c.url},
+get:function(k,d){var b=this._b();if(!b)return Promise.resolve(store.get("cloud_"+k,d));return fetch(b+"/"+encodeURIComponent(k)).then(function(r){return r.json()}).then(function(j){return j.value==null?d:j.value}).catch(function(){return d})},
+set:function(k,v){var b=this._b();if(!b){store.set("cloud_"+k,v);return Promise.resolve(true)}return fetch(b+"/"+encodeURIComponent(k),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({value:v})}).then(function(r){if(!r.ok)throw 0;return true}).catch(function(){toast("Бұлтқа сақтау мүмкін болмады");return false})},
+list:function(){var b=this._b();if(!b){var o={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.indexOf("app_cloud_")===0)o[k.slice(10)]=JSON.parse(localStorage.getItem(k))}}catch(e){}return Promise.resolve(o)}return fetch(b).then(function(r){return r.json()}).then(function(j){return j.data||{}}).catch(function(){return{}})}};
 W.uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)};
 W.esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
 W.fmt={money:function(n){return(+n||0).toLocaleString("kk-KZ")+" ₸"},date:function(d){return new Date(d).toLocaleDateString("kk-KZ",{day:"numeric",month:"short"})},num:function(n){return(+n||0).toLocaleString("kk-KZ")}};

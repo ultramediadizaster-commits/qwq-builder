@@ -18,7 +18,8 @@ ${QUALITY}
 - .card, .card.glow, .row (.between), .grow, .grid2, .stat (ішінде <b>мән</b><span>атауы</span>), .list > .item (ішінде .grow > <b>+<span>), .badge (.ok .warn .bad), .progress > <i style="width:40%">, .empty, .muted, .grad (градиент мәтін), .chips > .chip (.on).
 - Батырма: .btn, .btn.primary, .btn.ghost, .btn.danger, .btn.sm, .btn.icon, .btn.block. Форма: .field > <label> + .input / .select / .textarea. Ауыстырғыш: button.switch (.on).
 - Модальды терезе: <div class="modal" id="m1"><div class="sheet">..<button class="btn" data-close>Жабу</button></div></div>; ашу: data-open="m1".
-- JS көмекшілері ДАЙЫН (қайта жарияла-ма!): $ $$ store.get(кілт, әдепкі) store.set(кілт, мән) uid() esc(мәтін) toast(хабар) go(экранId) fmt.money(n) fmt.date(d) fmt.num(n).
+- JS көмекшілері ДАЙЫН (қайта жарияла-ма!): $ $$ store.get(кілт, әдепкі) store.set(кілт, мән) uid() esc(мәтін) toast(хабар) go(экранId) fmt.money(n) fmt.date(d) fmt.num(n) cloud.get(кілт, әдепкі) cloud.set(кілт, мән) cloud.list() (үшеуі де Promise қайтарады).
+- Деректерді бірнеше адам бірге қолдануы керек болса (мысалы, сынып бір кестені бірге толтырады, ортақ тізім, дауыс беру), store емес, cloud көмекшісін пайдалан: await cloud.set("кілт", мән), await cloud.get("кілт", әдепкі), await cloud.list(). Кез келген адам өзі ғана көретін деректер үшін store қолдан. Cloud-қа бір кілтке жиынтығы 100 КБ-тан аспайтындай шағын JSON сақта.
 - Өз CSS-ің тек қосымша үшін (қысқа, мысалы диаграмма, ерекше элементтер). Негізгі дизайн шаблоннан келеді.
 
 ТАЛАПТАР:
