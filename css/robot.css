@@ -1,48 +1,31 @@
-/* QWQ нұсқаулық роботы: өлшемі, эмоциялар (көз пішіні), күту анимациялары, белгілеу (spotlight), көпіршік */
+/* QWQ нұсқаулық роботы: өлшемі, суреттер арасындағы ауысу, күту анимациялары, жарқыл мен көлеңке, белгілеу (spotlight), көпіршік */
 :root{--qwq-size:140px;--qwq-cyan:#4fd6ea;--qwq-gold:#ffc83d}
 @media (max-width:600px){:root{--qwq-size:88px}}
 
-.qwq-robot{position:fixed;left:0;top:0;width:var(--qwq-size);z-index:9995;pointer-events:none;will-change:transform;opacity:0}
-.qwq-svg{display:block;width:100%;height:auto;overflow:visible;animation:qwqFloat 3s ease-in-out infinite}
-.qwq-robot.flip .qwq-svg{scale:-1 1}
+.qwq-robot{position:fixed;left:0;top:0;width:var(--qwq-size);height:var(--qwq-size);z-index:9995;pointer-events:none;will-change:transform;opacity:0}
+/* қалқу: тек сурет қалқиды, астындағы жарқыл мен көлеңке орнында тұрып, сәл тынысталады */
+.qwq-float{position:absolute;inset:0;animation:qwqFloat 3s ease-in-out infinite}
 @keyframes qwqFloat{0%,100%{translate:0 -6px}50%{translate:0 6px}}
+.qwq-stage{position:absolute;inset:0;transform-origin:50% 85%}
+.qwq-robot.flip .qwq-stage{scale:-1 1}
+.qwq-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;user-select:none;-webkit-user-drag:none}
+.qwq-img.on{opacity:1}
+/* жазу кезінде сәл тербеліс */
+.qwq-robot.typing .qwq-stage{animation:qwqRock .9s ease-in-out infinite}
+@keyframes qwqRock{0%,100%{rotate:-1.6deg}50%{rotate:1.6deg}}
 
-/* бөліктердің айналу нүктелері (SVG viewBox координатында) */
-.qwq-robot #qwq-arm-r{transform-box:view-box;transform-origin:130px 146px}
-.qwq-robot #qwq-arm-l{transform-box:view-box;transform-origin:70px 146px}
-.qwq-robot #qwq-bodyg{transform-box:view-box;transform-origin:100px 185px}
-.qwq-robot #qwq-ring{transform-box:fill-box;transform-origin:center}
-.qwq-robot #qwq-exclaim{transform-box:fill-box;transform-origin:50% 100%;opacity:0}
-.qwq-robot #qwq-eyes-open{transform-box:view-box;transform-origin:100px 86px;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
-.qwq-robot #qwq-eyes-happy{opacity:0;transition:opacity .2s}
-.qwq-robot #qwq-laptop{transform-box:view-box;transform-origin:100px 186px;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
-.qwq-robot #qwq-mouth{opacity:0;transition:opacity .2s}
-.qwq-robot #qwq-bulb{transition:filter .3s}
-.qwq-robot #qwq-glowpad{animation:qwqPad 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
-@keyframes qwqPad{0%,100%{opacity:.7;transform:scale(.88)}50%{opacity:1;transform:scale(1.05)}}
+/* робот астындағы көгілдір жарқыл мен көлеңке (CSS); --lv — дыбыс деңгейі (0..1) */
+.qwq-floor{position:absolute;left:0;right:0;top:94%;height:0}
+.qwq-shadow,.qwq-glow,.qwq-ring{position:absolute;left:50%;border-radius:50%;transform:translateX(-50%)}
+.qwq-shadow{top:-4px;width:46%;height:9px;background:radial-gradient(closest-side,rgba(0,0,0,.55),rgba(0,0,0,0));animation:qwqShadow 3s ease-in-out infinite}
+@keyframes qwqShadow{0%,100%{width:42%;opacity:.85}50%{width:52%;opacity:.6}}
+.qwq-glow{--lv:0;top:-10px;width:62%;height:20px;background:radial-gradient(closest-side,rgba(79,214,234,.85),rgba(79,214,234,.25) 55%,rgba(79,214,234,0));
+  filter:blur(2px);opacity:calc(.55 + var(--lv) * .45);transform:translateX(-50%) scale(calc(.9 + var(--lv) * .45),calc(.9 + var(--lv) * .7));transition:opacity .08s,transform .08s;animation:qwqPad 3s ease-in-out infinite}
+@keyframes qwqPad{0%,100%{filter:blur(2px) brightness(.9)}50%{filter:blur(2px) brightness(1.15)}}
+.qwq-robot.speaking .qwq-glow{animation:none;box-shadow:0 0 calc(10px + var(--lv) * 26px) rgba(79,214,234,calc(.25 + var(--lv) * .5))}
+.qwq-ring{top:-9px;width:44%;height:16px;border:2px solid var(--qwq-cyan);opacity:0}
 
-/* қалыпты: сопақ көздер, әр 4 с жыпылықтайды */
-.qwq-robot.emo-normal #qwq-eyes-open{animation:qwqBlink 4s infinite}
-@keyframes qwqBlink{0%,93%,100%{transform:scaleY(1)}95.5%{transform:scaleY(.08)}}
-/* қуанышты: ^ ^ */
-.qwq-robot.emo-happy #qwq-eyes-open{opacity:0}
-.qwq-robot.emo-happy #qwq-eyes-happy{opacity:1}
-/* ойланып тұр: көздер жоғары-бүйірге, антенна шамы баяу жыпылықтайды */
-.qwq-robot.emo-thinking #qwq-eyes-open{transform:translate(9px,-7px) scale(.82)}
-.qwq-robot.emo-thinking #qwq-bulb{animation:qwqBulb 1.6s ease-in-out infinite}
-@keyframes qwqBulb{0%,100%{opacity:1}50%{opacity:.25}}
-/* таңғалған: көздер үлкейеді, «!» шығады */
-.qwq-robot.emo-surprised #qwq-eyes-open{transform:scale(1.3)}
-.qwq-robot.emo-surprised #qwq-exclaim{opacity:1}
-/* сөйлеу: эквалайзер-ауыз, шам жанып тұрады */
-.qwq-robot.speaking #qwq-mouth{opacity:1}
-.qwq-robot.speaking #qwq-bulb{filter:url(#qwq-glow) brightness(1.35) drop-shadow(0 0 6px #ffc83d)}
-/* жазу: ноутбукті алдына алады */
-.qwq-robot.typing #qwq-laptop{transform:translateY(-8px) scale(1.1)}
-.qwq-robot.typing #qwq-q{animation:qwqQ .5s ease-in-out infinite alternate}
-@keyframes qwqQ{to{opacity:.55}}
-
-.qwq-trail{position:fixed;width:12px;height:12px;border-radius:50%;pointer-events:none;z-index:9994;background:radial-gradient(circle,#bff4fb 0,#4fd6ea 40%,rgba(79,214,234,0) 72%)}
+.qwq-trail{position:fixed;width:16px;height:16px;box-shadow:0 0 12px 3px rgba(79,214,234,.55);border-radius:50%;pointer-events:none;z-index:9994;background:radial-gradient(circle,#bff4fb 0,#4fd6ea 40%,rgba(79,214,234,0) 72%)}
 
 /* белгілеу: нысана жарқырайды, қалған экран күңгірттенеді */
 .qwq-spot{position:fixed;z-index:9990;border-radius:16px;pointer-events:none;opacity:0;
@@ -70,6 +53,5 @@
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 8px 24px rgba(0,0,0,.45),0 0 18px rgba(79,214,234,.35)}
 
 @media (prefers-reduced-motion:reduce){
-  .qwq-svg,.qwq-robot #qwq-glowpad,.qwq-spot{animation:none}
-  .qwq-robot.emo-normal #qwq-eyes-open{animation:none}
+  .qwq-float,.qwq-shadow,.qwq-glow,.qwq-spot,.qwq-robot.typing .qwq-stage{animation:none}
 }

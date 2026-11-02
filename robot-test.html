@@ -18,11 +18,13 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
 <body>
 <div class="panel">
   <h1>QWQ роботы · тест беті</h1>
-  <p>Барлық эмоция мен анимацияны осы жерден көресіз. Дыбыс: kk-KZ-DauletNeural.</p>
+  <p>Барлық эмоция мен анимацияны осы жерден көресіз. Робот — суреттер (images/robot/*.webp), дыбыс: kk-KZ-DauletNeural.</p>
   <h2>Эмоциялар</h2>
   <div class="grid" id="emo">
     <button data-e="normal" class="on">Қалыпты</button><button data-e="happy">Қуанышты</button><button data-e="thinking">Ойланып тұр</button><button data-e="surprised">Таңғалған</button>
   </div>
+  <h2>Суреттер (күйлер)</h2>
+  <div class="grid" id="st"></div>
   <h2>Анимациялар</h2>
   <div class="grid">
     <button id="a-appear">Пайда болуы</button><button id="a-move">Жылжу</button><button id="a-point">Көрсету</button>
@@ -35,6 +37,7 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
 <script>
 (function(){
   const R = QWQRobot.create(document.body);
+  window.__qwqRobot = R;   // консольден сынау үшін
   const mob = () => innerWidth <= 600;
   const home = () => ({ x: mob() ? innerWidth / 2 : innerWidth * 0.55, y: mob() ? innerHeight * 0.42 : innerHeight * 0.5 });
   let bubble = null, help = null, sp = null;
@@ -42,6 +45,9 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
   const busy = (f) => async () => { try { await f(); } catch (e) { console.error(e); } };
   const setEmo = (e) => { R.emotion(e); document.querySelectorAll("#emo button").forEach((b) => b.classList.toggle("on", b.dataset.e === e)); };
   document.querySelectorAll("#emo button").forEach((b) => (b.onclick = () => setEmo(b.dataset.e)));
+  const ST = { idle: "Қалыпты", happy: "Қуанышты", thinking: "Ойлану", surprised: "Таңғалу", point: "Көрсету", wave: "Қол бұлғау", talk: "Сөйлеу", fly: "Ұшу", type: "Жазу" };
+  $("#st").innerHTML = QWQRobot.STATES.map((k) => `<button data-s="${k}">${ST[k]}</button>`).join("");
+  $("#st").onclick = (e) => { const b = e.target.closest("[data-s]"); if (!b) return; R.show(b.dataset.s); document.querySelectorAll("#st button").forEach((x) => x.classList.toggle("on", x === b)); };
   const ensure = async () => { if (help) { help.remove(); help = null; } if (!R.el.isConnected) location.reload(); if (getComputedStyle(R.el).opacity === "0") { const h = home(); await R.appear(h.x, h.y); } };
 
   function placeBubble() {
@@ -79,7 +85,9 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
   });
   $("#a-type").onclick = busy(async () => {
     await ensure(); const r = $("#inp").getBoundingClientRect();
-    await R.moveTo(Math.min(innerWidth - R.size() / 2 - 10, r.right - R.size() * 0.3), r.top - R.size() * 0.55);
+    // үстінде орын жетпесе (телефонда чат жолы жоғарыда), жолдың астына қонады
+    const above = r.top - R.size() * 0.55, s = R.size();
+    await R.moveTo(Math.min(innerWidth - s / 2 - 10, r.right - s * 0.3), above - s * 0.55 < 8 ? r.bottom + s * 0.62 : above);
     R.highlight($("#inp")); setEmo("normal");
     await R.typeInto($("#inp"), "Маған сабақ кестесін көрсететін қосымша керек");
     setEmo("happy"); setTimeout(() => R.unhighlight(), 1500);
