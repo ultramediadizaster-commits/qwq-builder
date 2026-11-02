@@ -32,6 +32,7 @@
       </div>
       <div class="res-bar2">
         <button class="btn btn--sm glass glass--flat" id="t-how" type="button">${ic("code", "ico ico--sm")}Қалай жұмыс істейді?</button>
+        <button class="btn btn--sm glass glass--flat" id="t-pub" type="button">${ic("spark", "ico ico--sm")}Галереяға жариялау</button>
         <button class="btn btn--sm glass glass--flat" id="t-ver" type="button">${ic("undo", "ico ico--sm")}Нұсқалар <span id="ver-n"></span></button>
       </div>
       <div class="stage" id="stage"><div class="frame-box" id="fb"><iframe id="frame" title="Дайын қосымша" sandbox="${SANDBOX}" referrerpolicy="no-referrer"></iframe></div>
@@ -43,6 +44,7 @@
     $("#t-undo").onclick = undo;
     $("#t-how").onclick = () => Q.sheets.explain();
     $("#t-ver").onclick = () => Q.sheets.versions();
+    $("#t-pub").onclick = () => Q.gallery.publish();
     $("#t-html").onclick = dlHtml;
     $("#t-zip").onclick = dlZip;
     $("#t-win").onclick = openWin;

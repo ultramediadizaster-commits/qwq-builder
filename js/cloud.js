@@ -191,6 +191,6 @@
 
   // сынақ үшін: жалған Firebase енгізу (нақты Google кіруінсіз синхронды тексеру)
   const inject = (f, u) => { fb = f; return onUser(u); };
-  Object.assign(C, { init, signIn, signOut, sync, toCloud, E, inject });
+  Object.assign(C, { getFb: load, init, signIn, signOut, sync, toCloud, E, inject });
   Q.cloud = C;
 })(window.QWQ);

@@ -105,7 +105,7 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sc.classList.contains("on")) closeSettings(); });
     $$("#nav button").forEach((b) => (b.onclick = () => go(b.dataset.view)));
 
-    Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); Q.chats.init(); Q.cloud.init(); status(); cloudUI();
+    Q.share.init(); Q.chat.init(); Q.code.render(); Q.result.init(); Q.chats.init(); Q.gallery.init(); Q.cloud.init(); status(); cloudUI();
     const h = location.hash.slice(1);
     go(VIEWS.includes(h) && (h === "chat" || S.data.idea) ? h : "chat");
     window.addEventListener("offline", () => toast("Интернет байланысы үзілді.", "err"));
