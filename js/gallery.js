@@ -4,7 +4,7 @@
   const { $, ic, esc, toast } = Q;
   const S = Q.store;
   const C = new Proxy({}, { get: (_, k) => Q.cloud[k] });   // cloud.js кейін жүктеледі
-  const MAX_HTML = 900 * 1024;     // Firestore құжаты ≤ 1 МиБ, сондықтан HTML ≤ 900 КБ (ережеде де тексеріледі)
+  const MAX_HTML = 900000;         // Firestore құжаты ≤ 1 МиБ, сондықтан HTML ≤ 900 КБ (ережеде де тексеріледі)
   const SANDBOX = "allow-scripts allow-forms allow-modals allow-popups";
   const ago = (ms) => new Date(ms).toLocaleDateString("kk-KZ", { day: "numeric", month: "short", year: "numeric" });
   const spin = `<div style="display:grid;place-items:center;padding:28px 0"><div class="ring"></div></div>`;
