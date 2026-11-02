@@ -33,21 +33,46 @@
   animation:qwqSpot 1.8s ease-in-out infinite}
 @keyframes qwqSpot{50%{box-shadow:0 0 0 9999px rgba(3,5,10,.62),0 0 0 3px var(--qwq-cyan),0 0 48px 14px rgba(79,214,234,.62)}}
 
-/* сөйлеу көпіршігі (Liquid Glass) және басқару батырмалары */
-.qwq-bubble{position:fixed;z-index:9996;width:min(360px,calc(100vw - 32px));box-sizing:border-box;padding:16px 16px 12px;border-radius:22px;color:#fff;
-  background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.28);
-  -webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
-  box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 18px 50px rgba(0,0,0,.55);font-family:Inter,system-ui,sans-serif}
-.qwq-bubble .qb-step{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--qwq-cyan);margin-bottom:6px}
-.qwq-bubble .qb-text{font-size:16px;line-height:1.55;min-height:3.1em;transition:opacity .2s}
+/* сөйлеу көпіршігі (Liquid Glass: .glass жиегі мен жарқылы glass.css-тен) және басқару батырмалары */
+.qwq-bubble{position:fixed;z-index:9996;width:min(372px,calc(100vw - 32px));box-sizing:border-box;padding:16px 16px 14px;border-radius:24px;color:#fff;
+  -webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.42),inset 0 -1px 1px rgba(0,0,0,.5),inset 0 16px 26px -16px rgba(255,255,255,.22),inset 0 -14px 22px -16px rgba(0,0,0,.45),
+    0 18px 50px rgba(0,0,0,.55),0 0 0 1px rgba(79,214,234,.08);font-family:Inter,system-ui,sans-serif}
+.qwq-bubble .qb-step{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--qwq-cyan);margin-bottom:6px;text-shadow:0 0 12px rgba(79,214,234,.45)}
+/* жаңа сөйлем: жұмсақ fade (сәл бұлдырап, жоғары көтеріліп ауысады) */
+.qwq-bubble .qb-text{font-size:16px;line-height:1.55;min-height:3.1em;transition:opacity .32s cubic-bezier(.22,1,.36,1),transform .32s cubic-bezier(.22,1,.36,1),filter .32s}
+.qwq-bubble .qb-text.out{opacity:0;transform:translateY(4px);filter:blur(3px)}
 .qwq-bubble .qb-ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.qwq-bubble button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.26);background:rgba(255,255,255,.1);color:#fff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}
-.qwq-bubble button:hover{background:rgba(255,255,255,.18)}
-.qwq-bubble button:focus-visible{outline:2px solid var(--qwq-cyan);outline-offset:2px}
-.qwq-bubble button.qb-main{background:linear-gradient(145deg,rgba(79,214,234,.55),rgba(10,132,255,.45));border-color:rgba(160,240,250,.6);margin-left:auto}
-.qwq-bubble button[hidden]{display:none}
-.qwq-skip{position:fixed;z-index:9997;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.3);
-  background:rgba(20,22,30,.7);color:#fff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.qwq-bubble .qb-b{--h:44px;padding:0 15px;font-size:14px;gap:7px;cursor:pointer}
+.qwq-bubble .qb-b[hidden]{display:none}
+.qwq-bubble .qb-b:focus-visible,.qwq-skip:focus-visible{outline:2px solid var(--qwq-cyan);outline-offset:2px}
+/* үстіне апарғанда: жарқыл (жиектегі ::after glass.css-те) + сәл көтеріледі */
+.qwq-bubble .qb-b:hover:not(:disabled),.qwq-skip:hover{transform:translateY(-1px);box-shadow:inset 0 1px 1px rgba(255,255,255,.4),inset 0 -1px 1px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.45),0 0 18px rgba(160,230,255,.22)}
+.qwq-bubble .qb-b:active,.qwq-skip:active{transform:scale(.92);transition-duration:.12s}
+/* «Әрі қарай» — негізгі көгілдір шыны, ақырын жарқырайды */
+.qwq-bubble .qb-main{margin-left:auto;background:linear-gradient(145deg,rgba(110,230,245,.6),rgba(10,132,255,.5) 55%,rgba(60,90,255,.42));animation:qbGlow 2.6s ease-in-out infinite}
+@keyframes qbGlow{0%,100%{box-shadow:inset 0 1px 1px rgba(255,255,255,.55),inset 0 -1px 1px rgba(0,30,90,.6),inset 0 12px 20px -12px rgba(255,255,255,.4),0 6px 22px rgba(10,132,255,.32),0 0 0 rgba(79,214,234,0)}
+  50%{box-shadow:inset 0 1px 1px rgba(255,255,255,.65),inset 0 -1px 1px rgba(0,30,90,.6),inset 0 12px 20px -12px rgba(255,255,255,.5),0 8px 30px rgba(10,132,255,.5),0 0 22px rgba(79,214,234,.55)}}
+/* белгішелер: Тоқтату ⇄ Жалғастыру және дыбыс — тегіс ауысу */
+.qb-ic{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;flex:none}
+.qb-ic > svg,.qb-ic > span{grid-area:1/1;transition:opacity .3s,transform .45s cubic-bezier(.34,1.56,.64,1)}
+.qb-pp svg:last-child{opacity:0;transform:scale(.4) rotate(-90deg)}
+.is-paused .qb-pp svg:first-child{opacity:0;transform:scale(.4) rotate(90deg)}
+.is-paused .qb-pp svg:last-child{opacity:1;transform:none}
+.qb-snd .qb-x{opacity:0;transform:scale(.4);stroke-width:2.4}
+.qb-snd > svg:first-child{transform:translateX(-3px)}
+.qb-wave{display:flex;align-items:center;gap:1.5px;height:12px;transform:translateX(6px)}
+.qb-wave i{width:2px;height:4px;border-radius:2px;background:currentColor;opacity:.85;transition:height .2s}
+/* сөйлеп тұрғанда дыбыс толқыны (дыбыс деңгейі --lv бойынша) */
+.is-speaking:not(.is-paused) #qb-mute:not(.is-muted) .qb-wave i{animation:qbWave .9s ease-in-out infinite}
+.qb-wave i:nth-child(2){animation-delay:-.3s!important}.qb-wave i:nth-child(3){animation-delay:-.6s!important}
+@keyframes qbWave{0%,100%{height:3px}50%{height:calc(6px + var(--lv,.5) * 7px)}}
+.is-muted .qb-wave{opacity:0;transform:translateX(6px) scale(.3)}
+.is-muted .qb-x{opacity:1;transform:translateX(5px)}
+.qwq-skip{position:fixed;z-index:9997;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;--h:44px;font-size:14px;cursor:pointer}
+/* тоқтатылғанда: CSS анимациялары да тоқтайды */
+.qwq-paused .qwq-robot *,.qwq-paused .qwq-spot,.qwq-paused .qwq-trail{animation-play-state:paused!important}
+.qwq-bubble.is-paused .qb-step::after{content:" · тоқтатылды";color:rgba(255,255,255,.55);text-shadow:none}
 /* баптаулардағы бірінші батырма: нұсқаулықты қайта көру */
 .set-how{width:100%;justify-content:center;margin-top:14px}
 
@@ -58,12 +83,13 @@
 .qwq-ask .btn{width:100%;justify-content:center;margin-top:10px}
 
 @media (prefers-reduced-motion:reduce){
-  .qwq-float,.qwq-shadow,.qwq-glow,.qwq-spot,.qwq-robot.typing .qwq-stage{animation:none}
+  .qwq-float,.qwq-shadow,.qwq-glow,.qwq-spot,.qwq-robot.typing .qwq-stage,.qwq-bubble .qb-main,.qb-wave i{animation:none!important}
+  .qwq-bubble .qb-text{transition:opacity .2s}
 }
 
 /* нұсқаулық кезінде сайтты кездейсоқ басудан қорғайтын мөлдір қабат */
 .qwq-block{position:fixed;inset:0;z-index:9989;background:transparent}
-.qwq-bubble{transition:left .45s cubic-bezier(.22,1,.36,1),top .45s cubic-bezier(.22,1,.36,1)}
+.qwq-bubble{transition:left .45s cubic-bezier(.22,1,.36,1),top .45s cubic-bezier(.22,1,.36,1),height .3s}
 @media (prefers-reduced-motion:reduce){.qwq-bubble{transition:none}}
 /* нысанасыз (экран ортасы) қадамда фон күңгірттенеді; көпіршік кез келген фонда оқылатындай тығызырақ шыны */
 .qwq-block{transition:background .35s}

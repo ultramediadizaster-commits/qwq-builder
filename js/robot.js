@@ -6,13 +6,50 @@
 (function () {
   const RM = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const SPRING = "cubic-bezier(.34,1.56,.64,1)";
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /* hold — «тоқтату» кезінде барлық күтулер (ұшу аралықтары, әріп-әріп жазу) бірге тоқтайды */
+  let HOLD = false;
+  const sleep = (ms) => new Promise((r) => {
+    let left = ms, last = performance.now();
+    const f = () => { const n = performance.now(); if (!HOLD) left -= n - last; last = n; if (left <= 0) r(); else setTimeout(f, Math.min(left, 60)); };
+    setTimeout(f, Math.min(ms, 60));
+  });
   const STATES = ["idle", "happy", "thinking", "surprised", "point", "wave", "talk", "fly", "type"];
   const EMO = { normal: "idle", happy: "happy", thinking: "thinking", surprised: "surprised", talk: "talk" };
 
   /* ---------- дыбыс: пернетақта шерту (WebAudio, файлсыз) ---------- */
   let AC = null;
   const ac = () => (AC = AC || new (window.AudioContext || window.webkitAudioContext)());
+
+  /* ---------- бір ортақ ойнатқыш: бір мезгілде тек бір сөйлем ойнайды (дыбыстар үстіне түспейді) ---------- */
+  const player = new Audio();
+  player.preload = "auto";
+  let playerSrc = null, analyser = null, owner = 0;
+  // 0.05 с үнсіз WAV — ойнатқышты пайдаланушы басқан сәтте «ашу» үшін
+  const SILENT = (() => {
+    const n = 400, b = new Uint8Array(44 + n), v = new DataView(b.buffer), w = (o, s) => [...s].forEach((c, i) => (b[o + i] = c.charCodeAt(0)));
+    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, "data"); v.setUint32(40, n, true); b.fill(128, 44);
+    let s = ""; b.forEach((x) => (s += String.fromCharCode(x))); return "data:audio/wav;base64," + btoa(s);
+  })();
+  /** Пайдаланушы басқан оқиғаның ІШІНДЕ шақырылады: AudioContext-ті жандандырып, үнсіз дыбыс ойнатады (autoplay шектеуі) */
+  function unlock() {
+    try {
+      const c = ac(); if (c.state !== "running") c.resume().catch(() => {});
+      const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0);
+    } catch (e) {}
+    if (!owner) { try { player.src = SILENT; playerSrc = SILENT; player.play().catch(() => {}); } catch (e) {} }
+  }
+  /** Дыбысты анализатор арқылы өткіземіз — тек AudioContext жұмыс істеп тұрса (әйтпесе дыбыс «үнсіз» ойнайды) */
+  function route() {
+    if (analyser) return analyser;
+    try {
+      const c = ac(); if (c.state !== "running") return null;
+      const s = c.createMediaElementSource(player); analyser = c.createAnalyser(); analyser.fftSize = 64;
+      s.connect(analyser); analyser.connect(c.destination);
+    } catch (e) { analyser = null; }
+    return analyser;
+  }
+  const resumeAc = () => { if (!AC || AC.state === "running") return Promise.resolve(); return Promise.race([AC.resume().catch(() => {}), sleep(300)]); };
   function click() {
     try {
       const c = ac(), t = c.currentTime, n = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter();
@@ -186,19 +223,25 @@
       const prevAction = action;
       if (!action || action === "talk") { action = o.pose === false ? null : "talk"; refresh(); }
       let cues = o.cues || null, idx = -1, raf = 0, paused = false, stopped = false, muted = !!o.muted, t0 = 0, acc = 0;
-      const audio = o.audio ? new Audio(o.audio) : null;
-      let analyser = null, data = null;
-      if (audio) audio.preload = "auto";
+      const me = ++owner;                         // ойнатқыштың иесі: ескі сөйлем жаңасына кедергі жасамайды
+      const audio = o.audio ? player : null;
+      const mine = () => owner === me && !stopped;
+      let data = null;
       let resolveDone; const done = new Promise((r) => (resolveDone = r));
       const finish = () => {
         if (stopped) return; stopped = true; cancelAnimationFrame(raf);
         root.classList.remove("speaking"); glow.style.setProperty("--lv", 0);
-        if (audio) audio.pause();
+        if (audio && owner === me) audio.pause();
         if (action === "talk") { action = prevAction === "talk" ? null : prevAction; refresh(); }
         o.onEnd && o.onEnd(); resolveDone();
       };
       const rate = o.rate || 1;   // сынау үшін: дыбыссыз режимді жылдамдату
-      const now = () => (audio && !muted ? audio.currentTime : acc + (paused ? 0 : (performance.now() - t0) / 1000 * rate));
+      const clock = () => acc + (paused ? 0 : (performance.now() - t0) / 1000 * rate);
+      let started = false;   // ойнатқышта әлі алдыңғы сөйлем тұруы мүмкін: басталмай тұрып уақыт — 0
+      const now = () => (!started ? 0 : audio && !muted ? audio.currentTime : clock());
+      // дыбыс бұғатталса — субтитр өз сағатымен жалғасады, «Дыбысты қосу» батырмасы шығады
+      const blocked = () => { if (!mine() || muted) return; acc = audio.currentTime || acc; t0 = performance.now(); muted = true; o.onBlocked && o.onBlocked(); };
+      const playNow = () => audio.play().catch((e) => { if (e && e.name === "AbortError") return; blocked(); });
       const tick = () => {
         if (stopped) return;
         const t = now();
@@ -211,37 +254,56 @@
         }
         // жарқыл: дыбыс бар болса — нақты қаттылық, жоқ болса — жұмсақ «сөйлеу» толқыны
         let lv = 0;
-        if (analyser && !muted && !paused) { analyser.getByteFrequencyData(data); let s = 0; for (let k = 1; k < 24; k++) s += data[k]; lv = Math.min(1, s / (23 * 170)); }
+        if (analyser && audio && !muted && !paused && AC && AC.state === "running") { data = data || new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(data); let s = 0; for (let k = 1; k < 24; k++) s += data[k]; lv = Math.min(1, s / (23 * 170)); }
         else if (!paused) { const s = performance.now() / 120; lv = 0.35 + 0.3 * Math.sin(s) * Math.sin(s * 0.63); }
         glow.style.setProperty("--lv", lv.toFixed(3));
+        o.onLevel && o.onLevel(paused ? 0 : lv);
         raf = requestAnimationFrame(tick);
       };
       const begin = async () => {
         if (!cues && o.vtt) { try { cues = parseVtt(await (await fetch(o.vtt)).text()); } catch (e) { cues = null; } }
+        if (!mine()) return;
         if (!cues || !cues.length) cues = splitText(o.text || "");
-        if (audio && !muted) {
-          try {
-            const c = ac(); if (c.state === "suspended") await c.resume();
-            const s = c.createMediaElementSource(audio); analyser = c.createAnalyser(); analyser.fftSize = 64; data = new Uint8Array(analyser.frequencyBinCount);
-            s.connect(analyser); analyser.connect(c.destination);
-          } catch (e) { analyser = null; }
-          audio.onended = finish;
-          try { await audio.play(); } catch (e) { muted = true; }   // автоойнату бұғатталса — субтитр өз жылдамдығымен
-        }
         t0 = performance.now();
+        if (audio) {
+          audio.pause();
+          if (playerSrc !== o.audio) { audio.src = o.audio; playerSrc = o.audio; } else audio.currentTime = 0;
+          audio.onended = () => { if (owner === me) finish(); };
+          if (!muted) {
+            await resumeAc(); if (!mine()) return;
+            route();
+          }
+        }
+        started = true; acc = 0; t0 = performance.now();
+        if (audio && !muted && !paused) playNow();
         tick();
       };
       begin();
       speaking = {
         get paused() { return paused; },
         get muted() { return muted; },
-        pause() { if (paused || stopped) return; paused = true; acc = now(); if (audio) audio.pause(); root.classList.remove("speaking"); glow.style.setProperty("--lv", 0); },
-        resume() { if (!paused || stopped) return; paused = false; t0 = performance.now(); if (audio && !muted) audio.play().catch(() => {}); root.classList.add("speaking"); },
+        get time() { return now(); },
+        // ретімен: алдымен уақытты бекітеміз, сосын paused қоямыз (әйтпесе дыбыссыз режимде уақыт артқа секіреді)
+        pause() {
+          if (paused || stopped) return;
+          acc = now(); paused = true;
+          if (audio && owner === me) audio.pause();
+          if (AC && AC.state === "running") AC.suspend().catch(() => {});
+          root.classList.remove("speaking"); glow.style.setProperty("--lv", 0);
+        },
+        resume() {
+          if (!paused || stopped) return;
+          paused = false; t0 = performance.now();
+          if (AC && AC.state === "suspended") AC.resume().catch(() => {});
+          if (started && audio && !muted && owner === me) { if (Math.abs(audio.currentTime - acc) > 0.25) audio.currentTime = acc; playNow(); }
+          root.classList.add("speaking");
+        },
         setMuted(m) {
           if (m === muted || stopped) return;
-          const t = now(); muted = m;
-          if (audio) { if (m) audio.pause(); else { audio.currentTime = t; if (!paused) audio.play().catch(() => { muted = true; }); } }
-          acc = t; t0 = performance.now();
+          const t = now(); acc = t; t0 = performance.now(); muted = m;
+          if (!audio || !started) return;
+          if (m) audio.pause();
+          else { route(); try { audio.currentTime = t; } catch (e) {} if (!paused) playNow(); }
         },
         stop: finish, done,
       };
@@ -280,5 +342,5 @@
     return { el: root, emotion, show, appear, moveTo, place, pointAt, relax, highlight, unhighlight, speak, stopSpeak, typeInto, wave, bye, destroy, parseVtt, get pos() { return pos; }, get state() { return shown; }, size };
   }
 
-  window.QWQRobot = { create, parseVtt, splitText, STATES };
+  window.QWQRobot = { create, parseVtt, splitText, STATES, unlock, sleep, hold: (on) => { HOLD = !!on; }, get held() { return HOLD; } };
 })();

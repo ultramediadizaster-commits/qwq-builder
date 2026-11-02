@@ -8,7 +8,7 @@
   const STEPS = Q.onboardingSteps || [];
   const K_DONE = "qwq.tour.done", K_MUTE = "qwq.tour.muted";
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const sleep = (ms) => (window.QWQRobot ? QWQRobot.sleep(ms) : new Promise((r) => setTimeout(r, ms)));   // «тоқтату» кезінде бірге тоқтайды
   const mobile = () => innerWidth <= 600;
   const nn = (i) => String(i + 1).padStart(2, "0");
 
@@ -64,44 +64,108 @@
     Q.go(o.view || "chat");
   }
 
+  /* ---------- дыбыс: алдын ала жүктеу (11 MP3 + VTT) ---------- */
+  const PRE = { mp3: [], vtt: [] };   // беттің өмір бойы сақталады: қайта көргенде қайта жүктелмейді
+  function preload() {
+    STEPS.forEach((_, i) => {
+      if (!PRE.mp3[i]) PRE.mp3[i] = fetch(`audio/onboarding/${nn(i)}.mp3`).then((r) => (r.ok ? r.blob() : null)).then((b) => (b ? URL.createObjectURL(b) : null)).catch(() => null);
+      if (!PRE.vtt[i]) PRE.vtt[i] = fetch(`audio/onboarding/${nn(i)}.vtt`).then((r) => (r.ok ? r.text() : "")).catch(() => "");
+    });
+  }
+
+  /* ---------- тоқтату: дыбыс, AudioContext, субтитр сағаты, күтулер мен анимациялар бірге ---------- */
+  function hold() {
+    if (!T || T.paused) return;
+    T.paused = true;
+    if (T.sp) T.sp.pause();
+    QWQRobot.hold(true);
+    // көпіршіктің өз батырмаларынан басқа барлық анимация (ұшу, жарқыл, белгілеу, із)
+    T.held = document.getAnimations().filter((a) => a.playState === "running" && !(a.effect && a.effect.target && T.ui.b.contains(a.effect.target)));
+    T.held.forEach((a) => a.pause());
+    document.documentElement.classList.add("qwq-paused");
+    pauseLabel();
+  }
+  function unhold() {
+    if (!T || !T.paused) return;
+    T.paused = false;
+    document.documentElement.classList.remove("qwq-paused");
+    (T.held || []).forEach((a) => { try { a.play(); } catch (e) {} });
+    T.held = null;
+    QWQRobot.hold(false);
+    if (T.sp) T.sp.resume();
+    pauseLabel();
+  }
+
   /* ---------- көпіршік және басқару ---------- */
+  const ICON_PAUSE = `<svg class="ico ico--sm" viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.6" height="14" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" fill="currentColor" stroke="none"/></svg>`;
+  const ICON_PLAY = `<svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.4-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z" fill="currentColor" stroke="none"/></svg>`;
+  const ICON_SPK = `<svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/></svg>`;
   function buildUI() {
     const block = document.createElement("div");
     block.className = "qwq-block";                         // нұсқаулық кезінде сайтты кездейсоқ басып, нақты сұрау жібермеу үшін
     const skip = document.createElement("button");
-    skip.className = "qwq-skip"; skip.type = "button"; skip.textContent = "Өткізіп жіберу";
+    skip.className = "qwq-skip btn btn--sm glass glass--dark"; skip.type = "button"; skip.textContent = "Өткізіп жіберу";
     skip.onclick = () => end(true);
     const b = document.createElement("div");
-    b.className = "qwq-bubble"; b.setAttribute("role", "dialog"); b.setAttribute("aria-label", "QWQ нұсқаулығы");
+    b.className = "qwq-bubble glass"; b.setAttribute("role", "dialog"); b.setAttribute("aria-label", "QWQ нұсқаулығы");
     b.innerHTML = `<div class="qb-step" id="qb-step"></div><div class="qb-text" id="qb-t" aria-live="polite"></div>
       <div class="qb-ctl">
-        <button id="qb-pause" type="button">⏸ Тоқтату</button><button id="qb-mute" type="button" aria-pressed="false"></button>
-        <button id="qb-prev" type="button">← Алдыңғысы</button><button id="qb-again" type="button">↻ Қайта түсіндір</button><button id="qb-next" class="qb-main" type="button">Әрі қарай →</button>
+        <button id="qb-pause" class="btn glass glass--flat qb-b" type="button"><span class="qb-ic qb-pp">${ICON_PAUSE}${ICON_PLAY}</span><span class="qb-l">Тоқтату</span></button>
+        <button id="qb-mute" class="btn glass glass--flat qb-b" type="button" aria-pressed="false"><span class="qb-ic qb-snd">${ICON_SPK}<span class="qb-wave"><i></i><i></i><i></i></span><svg class="ico ico--sm qb-x" viewBox="0 0 24 24"><path d="M15 9.5l5 5M20 9.5l-5 5"/></svg></span><span class="qb-l"></span></button>
+        <button id="qb-unmute" class="btn btn--primary glass qb-b" type="button" hidden>🔊 Дыбысты қосу</button>
+        <button id="qb-prev" class="btn glass glass--flat qb-b" type="button">← Алдыңғысы</button>
+        <button id="qb-again" class="btn glass glass--flat qb-b" type="button">↻ Қайта түсіндір</button>
+        <button id="qb-next" class="btn btn--primary glass lens qb-b qb-main" type="button">Әрі қарай →</button>
       </div>`;
     document.body.append(block, skip, b);
-    T.ui = { block, skip, b, t: b.querySelector("#qb-t"), step: b.querySelector("#qb-step"), pause: b.querySelector("#qb-pause"), mute: b.querySelector("#qb-mute"), prev: b.querySelector("#qb-prev"), again: b.querySelector("#qb-again"), next: b.querySelector("#qb-next") };
+    T.ui = { block, skip, b, t: b.querySelector("#qb-t"), step: b.querySelector("#qb-step"), pause: b.querySelector("#qb-pause"), mute: b.querySelector("#qb-mute"), unmute: b.querySelector("#qb-unmute"), prev: b.querySelector("#qb-prev"), again: b.querySelector("#qb-again"), next: b.querySelector("#qb-next") };
     const u = T.ui;
-    u.pause.onclick = () => { const sp = T.sp; if (!sp) return; if (sp.paused) { sp.resume(); u.pause.textContent = "⏸ Тоқтату"; } else { sp.pause(); u.pause.textContent = "▶ Жалғастыру"; } };
-    u.mute.onclick = () => { T.muted = !T.muted; ls.set(K_MUTE, T.muted ? "1" : "0"); muteLabel(); if (T.sp) T.sp.setMuted(T.muted); };
-    u.prev.onclick = () => go(T.i - 1);
-    u.again.onclick = () => go(T.i);
-    u.next.onclick = () => (T.i >= STEPS.length - 1 ? end(false) : go(T.i + 1));
+    // сөйлеу басталмай тұрып та (робот ұшып келе жатқанда) тоқтатуға болады
+    u.pause.onclick = () => { QWQRobot.unlock(); if (T.paused) unhold(); else hold(); };
+    u.mute.onclick = () => {
+      QWQRobot.unlock();                                     // басқан сәтте: дыбысты қосса, бірден ойнай алады
+      T.muted = !T.muted; ls.set(K_MUTE, T.muted ? "1" : "0"); muteLabel();
+      u.unmute.hidden = true;
+      if (T.sp) T.sp.setMuted(T.muted);
+    };
+    u.unmute.onclick = () => { QWQRobot.unlock(); T.muted = false; ls.set(K_MUTE, "0"); u.unmute.hidden = true; muteLabel(); if (T.sp) T.sp.setMuted(false); layout(T.el, false); };
+    // жылдам басқанда: әр батырма алдымен тоқтатуды алып тастайды, go() ескі сөйлемді толық тоқтатады
+    const nav = (f) => () => { QWQRobot.unlock(); unhold(); f(); };
+    u.prev.onclick = nav(() => go(T.i - 1));
+    u.again.onclick = nav(() => go(T.i));
+    u.next.onclick = nav(() => (T.i >= STEPS.length - 1 ? end(false) : go(T.i + 1)));
     muteLabel();
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) b.animate([{ opacity: 0, transform: "scale(.82) translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 600, easing: "cubic-bezier(.34,1.56,.64,1)" });
   }
-  const muteLabel = () => { const m = T.ui.mute; m.textContent = T.muted ? "🔇 Дыбыссыз" : "🔊 Дыбыс"; m.setAttribute("aria-pressed", String(T.muted)); m.setAttribute("aria-label", T.muted ? "Дыбысты қосу" : "Дыбысты өшіру"); };
+  const muteLabel = () => {
+    const m = T.ui.mute;
+    m.classList.toggle("is-muted", T.muted);
+    m.querySelector(".qb-l").textContent = T.muted ? "Дыбыссыз" : "Дыбыс";
+    m.setAttribute("aria-pressed", String(T.muted)); m.setAttribute("aria-label", T.muted ? "Дыбысты қосу" : "Дыбысты өшіру");
+  };
+  const pauseLabel = () => {
+    const p = T.ui.pause;
+    p.classList.toggle("is-paused", !!T.paused);
+    p.querySelector(".qb-l").textContent = T.paused ? "Жалғастыру" : "Тоқтату";
+    p.setAttribute("aria-label", T.paused ? "Жалғастыру" : "Тоқтату");
+    T.ui.b.classList.toggle("is-paused", !!T.paused);
+  };
   function controls(speaking) {
     const u = T.ui, last = T.i >= STEPS.length - 1;
     u.pause.hidden = !speaking; u.mute.hidden = false;
     u.prev.hidden = speaking || T.i === 0; u.again.hidden = speaking; u.next.hidden = speaking;
-    u.pause.textContent = "⏸ Тоқтату";
+    if (!speaking) u.unmute.hidden = true;
+    u.b.classList.toggle("is-speaking", speaking);
+    pauseLabel();
     u.next.textContent = last ? "Бастау!" : "Әрі қарай →";
     if (!speaking) u.next.focus({ preventScroll: true });
     layout(T.el, false);   // батырмалар шыққанда көпіршік биіктейді — орнын қайта есептейміз
   }
+  // жаңа сөйлем: жұмсақ fade (әріп-әріп емес)
   function setText(s) {
-    const t = T.ui.t;
-    t.style.opacity = 0;
-    setTimeout(() => { t.textContent = s; t.style.opacity = 1; layout(T.el, false); }, 120);
+    const t = T.ui.t, id = (T.txt = (T.txt || 0) + 1);
+    t.classList.add("out");
+    setTimeout(() => { if (!T || T.txt !== id) return; t.textContent = s; t.classList.remove("out"); layout(T.el, false); }, 180);
   }
 
   /* ---------- орналасу: нысананы жаппайтындай ---------- */
@@ -213,7 +277,7 @@
     if (tok !== T.tok) return;
     // сөйлеп тұрғанда «қалыпты» күй — түсіндіріп тұрған қимыл (talk)
     R.emotion(b.e === "normal" || !b.e ? (T.sp ? "talk" : "normal") : b.e);
-    if (b.act === "type") R.typeInto($("#input"), step.typeText);
+    if (b.act === "type") R.typeInto($("#input"), step.typeText, { signal: T.abort && T.abort.signal });
     if (b.act === "wave") R.wave(1);
   }
 
@@ -225,16 +289,21 @@
     const beats = ((Q.onboardingBeats || [])[i] || [{ c: 0, t: null, e: st.emotion || "normal" }]).map((b) => Object.assign({ done: false }, b));
     T.i = i;
     if (T.sp) { T.sp.stop(); T.sp = null; }
+    if (T.abort) T.abort.abort();                     // алдыңғы қадамның әріп-әріп жазуы (шерту дыбыстары) тоқтайды
+    T.abort = new AbortController();
     R.unhighlight(); R.relax();
     closeAll();
     if (i === 1) { $("#input").value = ""; $("#input").dispatchEvent(new Event("input")); }
     T.ui.step.textContent = `${i + 1} / ${STEPS.length} · ${st.t}`;
     T.ui.t.textContent = "";
+    T.ui.unmute.hidden = true;
     controls(true);
-    // сөйлем уақыттары (VTT) — сәттерді дәл сөйлемге байлау үшін
+    // сөйлем уақыттары (VTT) — сәттерді дәл сөйлемге байлау үшін (алдын ала жүктелген)
+    preload();
     let cues = null;
-    try { cues = QWQRobot.parseVtt(await (await fetch(`audio/onboarding/${nn(i)}.vtt`)).text()); } catch (e) {}
+    try { cues = QWQRobot.parseVtt(await PRE.vtt[i]); } catch (e) {}
     if (!cues || !cues.length) cues = QWQRobot.splitText(st.text);
+    const url = (await PRE.mp3[i]) || `audio/onboarding/${nn(i)}.mp3`;
     if (tok !== T.tok) return;
     beats.forEach((b) => {
       const c = cues[Math.min(b.c, cues.length - 1)];
@@ -257,8 +326,10 @@
       });
     };
     T.sp = R.speak({
-      audio: `audio/onboarding/${nn(i)}.mp3`, cues, text: st.text, muted: T.muted, pose: false,
+      audio: url, cues, text: st.text, muted: T.muted, pose: false,
       rate: T.rate || 1,
+      onBlocked: () => { if (tok !== T.tok) return; T.ui.unmute.hidden = false; layout(T.el, false); },
+      onLevel: (lv) => { if (tok === T.tok) T.ui.mute.style.setProperty("--lv", lv.toFixed(2)); },
       onTick: (t) => { if (tok === T.tok) due(t); },
       onCue: (c) => { if (tok === T.tok) setText(c.text); },
       onEnd: () => {
@@ -267,6 +338,7 @@
         chain.then(() => { if (tok !== T.tok) return; controls(false); if (R.state === "talk") R.emotion("normal"); });
       },
     });
+    if (T.paused) T.sp.pause();   // тоқтатылған кезде басталса — сол күйінде күтеді
     if (R.state === "idle") R.emotion("talk");
   }
 
@@ -274,11 +346,13 @@
   function start() {
     if (T || !STEPS.length || !window.QWQRobot) return;
     if (Q.chat.isBusy() || Q.code.isRunning()) { Q.toast("Жұмыс аяқталғанша күте тұр", "err", 3000); return; }
+    QWQRobot.unlock();   // батырма басылған оқиғаның ішінде: AudioContext + ойнатқыш «ашылады» (autoplay шектеуі)
+    preload();
     document.querySelectorAll(".scrim.on").forEach((x) => x.classList.remove("on"));
     T = { i: 0, tok: 0, log: [], muted: ls.get(K_MUTE) === "1", robot: QWQRobot.create(document.body), sp: null };
     enterDemo();
     buildUI();
-    T.key = (e) => { if (e.key === "Escape") end(true); };
+    T.key = (e) => { if (e.key === "Escape") end(true); else if (e.key === " " && T.sp && e.target === document.body) { e.preventDefault(); T.ui.pause.click(); } };
     document.addEventListener("keydown", T.key);
     T.rs = () => layout(T.el, false) || (T.home && T.robot.place(T.home.x, T.home.y));
     addEventListener("resize", T.rs);
@@ -287,8 +361,10 @@
 
   async function end(skipped) {
     if (!T || T.ending) return;
+    unhold();
     const t = T; t.ending = true; t.tok++;
     if (t.sp) t.sp.stop();
+    if (t.abort) t.abort.abort();
     document.removeEventListener("keydown", t.key); removeEventListener("resize", t.rs);
     t.ui.b.remove(); t.ui.skip.remove();
     t.robot.unhighlight();
@@ -369,5 +445,5 @@
   }
 
   // goto/skipSpeech — сынау мен консоль үшін
-  Q.tour = { init, start, end, goto: (i) => go(i), setRate: (r) => { if (T) T.rate = r; }, skipSpeech: () => T && T.sp && T.sp.stop(), get active() { return !!T; }, get log() { return T ? T.log : []; }, get step() { return T ? T.i : -1; } };
+  Q.tour = { init, start, end, goto: (i) => go(i), setRate: (r) => { if (T) T.rate = r; }, skipSpeech: () => T && T.sp && T.sp.stop(), get active() { return !!T; }, get time() { return T && T.sp ? T.sp.time : -1; }, get log() { return T ? T.log : []; }, get step() { return T ? T.i : -1; } };
 })(window.QWQ);
