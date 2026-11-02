@@ -1,7 +1,7 @@
 /* QWQ Builder · интерактивті нұсқаулық (QWQ роботы).
-   Тек алғаш кірген адамға өздігінен шығады (localStorage белгісі; Google арқылы кірсе — Firestore users/{uid}/builderMeta/prefs).
+   Алғаш кірген адамнан бір рет қана сұрайды: «Жаңадан бастайсыз ба?» (localStorage белгісі; Google арқылы кірсе — Firestore users/{uid}/builderMeta/prefs).
    Нұсқаулық нақты API шақырмайды: уақытша демо чат көрсетіледі, ештеңе сақталмайды, соңында бәрі бұрынғы қалпына қайтады.
-   Біткен соң робот төменгі бұрыштағы «?» батырмасына айналады; баптауларда «Нұсқаулықты қайта көру» бар. */
+   Кейін қайта көру: Баптаулар → «Қалай жұмыс істейді?» (бірінші батырма). */
 (function (Q) {
   const { $, esc } = Q;
   const S = Q.store;
@@ -12,7 +12,7 @@
   const mobile = () => innerWidth <= 600;
   const nn = (i) => String(i + 1).padStart(2, "0");
 
-  let T = null, help = null;
+  let T = null;
 
   /* ---------- демо деректер (сабақ кестесі) ---------- */
   function demoChat() {
@@ -274,7 +274,6 @@
   function start() {
     if (T || !STEPS.length || !window.QWQRobot) return;
     if (Q.chat.isBusy() || Q.code.isRunning()) { Q.toast("Жұмыс аяқталғанша күте тұр", "err", 3000); return; }
-    if (help) { help.remove(); help = null; }
     document.querySelectorAll(".scrim.on").forEach((x) => x.classList.remove("on"));
     T = { i: 0, tok: 0, log: [], muted: ls.get(K_MUTE) === "1", robot: QWQRobot.create(document.body), sp: null };
     enterDemo();
@@ -294,25 +293,40 @@
     t.ui.b.remove(); t.ui.skip.remove();
     t.robot.unhighlight();
     closeAll();
-    const hp = helpPos();
-    await t.robot.bye(hp.x, hp.y);
+    // робот баптаулар батырмасына «кіріп» кетеді: нұсқаулық сонда қалады
+    const sb = $("#btn-settings").getBoundingClientRect();
+    await t.robot.bye(sb.left + sb.width / 2, sb.top + sb.height / 2);
     t.ui.block.remove();
     exitDemo();
     T = null;
     markDone();
-    showHelp(true);
   }
 
-  /* ---------- «?» батырмасы ---------- */
-  function helpPos() { return { x: innerWidth - 16 - 24, y: innerHeight - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--bottom-h")) || 150) - 14 - 24 }; }
-  function showHelp(anim) {
-    if (help || T) return;
-    help = document.createElement("button");
-    help.className = "qwq-help"; help.type = "button"; help.textContent = "?";
-    help.setAttribute("aria-label", "Нұсқаулықты қайта бастау"); help.title = "Нұсқаулық";
-    help.onclick = start;
-    document.body.appendChild(help);
-    if (anim && !matchMedia("(prefers-reduced-motion: reduce)").matches) help.animate([{ transform: "scale(0)" }, { transform: "scale(1.15)", offset: 0.7 }, { transform: "scale(1)" }], { duration: 450, easing: "cubic-bezier(.34,1.56,.64,1)" });
+  /* ---------- алғаш кіргенде: «Жаңадан бастайсыз ба?» ---------- */
+  function ask() {
+    markDone();   // сұрақ тек бір рет шығады — жауап бермей жапса да
+    const d = document.createElement("div");
+    d.className = "scrim qwq-ask"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "qa-t");
+    d.innerHTML = `<div class="sheet glass glass--dark">
+      <img src="images/robot/wave.webp" alt="" width="120" height="120">
+      <h2 id="qa-t">Сәлем! QWQ Құрастырды бұрын қолдандыңыз ба?</h2>
+      <p>Жаңадан бастасаңыз, мен бәрін 11 қысқа қадаммен көрсетіп шығамын.</p>
+      <button class="btn btn--primary glass" id="qa-new" type="button">Жаңадан бастаймын — көрсетіңіз</button>
+      <button class="btn glass glass--flat" id="qa-know" type="button">Бұрыннан қолданамын</button></div>`;
+    document.body.appendChild(d);
+    requestAnimationFrame(() => d.classList.add("on"));
+    const close = (tour) => {
+      document.removeEventListener("keydown", key);
+      d.classList.remove("on"); setTimeout(() => d.remove(), 320);
+      if (tour) start();
+      else Q.toast("Нұсқаулықты кейін «Баптаулар → Қалай жұмыс істейді?» арқылы көре аласыз.", "ok", 5000);
+    };
+    const key = (e) => { if (e.key === "Escape") close(false); };
+    document.addEventListener("keydown", key);
+    d.querySelector("#qa-new").onclick = () => close(true);
+    d.querySelector("#qa-know").onclick = () => close(false);
+    d.onclick = (e) => { if (e.target === d) close(false); };
+    setTimeout(() => d.querySelector("#qa-new").focus(), 60);
   }
 
   /* ---------- белгі: localStorage + Firestore (Google арқылы кірсе) ---------- */
@@ -330,16 +344,16 @@
   }
 
   async function auto() {
-    if (ls.get(K_DONE) === "1") { showHelp(false); return; }
+    if (ls.get(K_DONE) === "1") return;
     // бұрыннан чаттары бар қолданушы — жаңа емес
-    if (S.list().length) { ls.set(K_DONE, "1"); showHelp(false); return; }
+    if (S.list().length) { ls.set(K_DONE, "1"); return; }
     // бұрын Google арқылы кірген болса, сессия қалпына келгенше күтіп, бұлттағы белгіні тексереміз
     if (ls.get("qwq.cloud") === "1") {
       for (let i = 0; i < 20 && !(Q.cloud && Q.cloud.user); i++) await sleep(200);
-      if (await remoteDone()) { ls.set(K_DONE, "1"); showHelp(false); return; }
+      if (await remoteDone()) { ls.set(K_DONE, "1"); return; }
     }
-    if (Q.demo && Q.demo.active) { showHelp(false); return; }
-    start();
+    if (Q.demo && Q.demo.active) return;
+    ask();
   }
 
   function init() {
@@ -349,7 +363,7 @@
     let seen = null;   // әр кірген қолданушы үшін бір рет қана
     if (Q.cloud && Q.cloud.onState) Q.cloud.onState(async () => {
       const u = Q.cloud.user; if (!u || seen === u.uid) return; seen = u.uid;
-      if (ls.get(K_DONE) === "1") markDone(); else if (!T && (await remoteDone())) { ls.set(K_DONE, "1"); showHelp(false); }
+      if (ls.get(K_DONE) === "1") markDone(); else if (!T && (await remoteDone())) ls.set(K_DONE, "1");
     });
     setTimeout(auto, 900);
   }

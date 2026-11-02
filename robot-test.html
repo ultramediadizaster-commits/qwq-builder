@@ -40,7 +40,7 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
   window.__qwqRobot = R;   // консольден сынау үшін
   const mob = () => innerWidth <= 600;
   const home = () => ({ x: mob() ? innerWidth / 2 : innerWidth * 0.55, y: mob() ? innerHeight * 0.42 : innerHeight * 0.5 });
-  let bubble = null, help = null, sp = null;
+  let bubble = null, sp = null;
   const $ = (s) => document.querySelector(s);
   const busy = (f) => async () => { try { await f(); } catch (e) { console.error(e); } };
   const setEmo = (e) => { R.emotion(e); document.querySelectorAll("#emo button").forEach((b) => b.classList.toggle("on", b.dataset.e === e)); };
@@ -48,7 +48,7 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
   const ST = { idle: "Қалыпты", happy: "Қуанышты", thinking: "Ойлану", surprised: "Таңғалу", point: "Көрсету", wave: "Қол бұлғау", talk: "Сөйлеу", fly: "Ұшу", type: "Жазу" };
   $("#st").innerHTML = QWQRobot.STATES.map((k) => `<button data-s="${k}">${ST[k]}</button>`).join("");
   $("#st").onclick = (e) => { const b = e.target.closest("[data-s]"); if (!b) return; R.show(b.dataset.s); document.querySelectorAll("#st button").forEach((x) => x.classList.toggle("on", x === b)); };
-  const ensure = async () => { if (help) { help.remove(); help = null; } if (!R.el.isConnected) location.reload(); if (getComputedStyle(R.el).opacity === "0") { const h = home(); await R.appear(h.x, h.y); } };
+  const ensure = async () => { if (!R.el.isConnected) location.reload(); if (getComputedStyle(R.el).opacity === "0") { const h = home(); await R.appear(h.x, h.y); } };
 
   function placeBubble() {
     if (!bubble) return;
@@ -97,10 +97,6 @@ body{margin:0;min-height:100vh;background:radial-gradient(900px 600px at 15% 0%,
     await ensure(); if (bubble) { bubble.remove(); bubble = null; }
     const x = innerWidth - 40, y = innerHeight - 128;
     await R.bye(x, y);
-    help = document.createElement("button"); help.className = "qwq-help"; help.type = "button"; help.textContent = "?"; help.setAttribute("aria-label", "Нұсқаулықты қайта бастау");
-    document.body.appendChild(help);
-    help.animate([{ transform: "scale(0)" }, { transform: "scale(1.15)", offset: .7 }, { transform: "scale(1)" }], { duration: 450, easing: "cubic-bezier(.34,1.56,.64,1)" });
-    help.onclick = () => location.reload();
   });
   addEventListener("resize", placeBubble);
   // бет ашылғанда: пайда болу

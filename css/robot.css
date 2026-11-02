@@ -48,9 +48,14 @@
 .qwq-bubble button[hidden]{display:none}
 .qwq-skip{position:fixed;z-index:9997;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.3);
   background:rgba(20,22,30,.7);color:#fff;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
-.qwq-help{position:fixed;z-index:9993;right:16px;bottom:calc(var(--bottom-h,150px) + 14px);width:48px;height:48px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.35);background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.06));color:#fff;font:700 20px Inter,system-ui,sans-serif;cursor:pointer;
-  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 8px 24px rgba(0,0,0,.45),0 0 18px rgba(79,214,234,.35)}
+/* баптаулардағы бірінші батырма: нұсқаулықты қайта көру */
+.set-how{width:100%;justify-content:center;margin-top:14px}
+
+/* алғаш кіргенде: «Жаңадан бастайсыз ба?» сұрағы */
+.qwq-ask .sheet{text-align:center}
+.qwq-ask img{width:120px;height:120px;margin:-6px auto 4px;display:block;filter:drop-shadow(0 0 18px rgba(79,214,234,.45))}
+.qwq-ask p{margin:6px 0 18px;color:rgba(255,255,255,.72);font-size:15px;line-height:1.45}
+.qwq-ask .btn{width:100%;justify-content:center;margin-top:10px}
 
 @media (prefers-reduced-motion:reduce){
   .qwq-float,.qwq-shadow,.qwq-glow,.qwq-spot,.qwq-robot.typing .qwq-stage{animation:none}
