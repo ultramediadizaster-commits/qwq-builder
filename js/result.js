@@ -19,21 +19,30 @@
       <div class="res-bar">
         <div class="seg glass glass--flat" role="tablist" aria-label="Құрылғы">
           <span class="seg-ind" id="seg-ind"></span>
-          <button role="tab" data-m="phone" aria-selected="${mode === "phone"}">${ic("phone", "ico ico--sm")}Телефон</button>
-          <button role="tab" data-m="desktop" aria-selected="${mode === "desktop"}">${ic("monitor", "ico ico--sm")}Компьютер</button>
+          <button role="tab" data-m="phone" aria-selected="${mode === "phone"}" aria-label="Телефон">${ic("phone", "ico ico--sm")}<span class="seg-l">Телефон</span></button>
+          <button role="tab" data-m="desktop" aria-selected="${mode === "desktop"}" aria-label="Компьютер">${ic("monitor", "ico ico--sm")}<span class="seg-l">Компьютер</span></button>
         </div>
         <div class="tools">
-          <button class="btn btn--icon glass glass--flat" id="t-undo" type="button" aria-label="Алдыңғы нұсқа" title="Алдыңғы нұсқа">${ic("undo", "ico ico--sm")}</button>
-          <button class="btn btn--sm glass glass--flat" id="t-html" type="button">${ic("download", "ico ico--sm")}HTML</button>
-          <button class="btn btn--sm glass glass--flat" id="t-zip" type="button">${ic("download", "ico ico--sm")}ZIP</button>
+          <button class="btn btn--icon glass glass--flat t-x" id="t-undo" type="button" aria-label="Алдыңғы нұсқа" title="Алдыңғы нұсқа">${ic("undo", "ico ico--sm")}</button>
+          <button class="btn btn--sm glass glass--flat" id="t-ver" type="button">${ic("list", "ico ico--sm")}Нұсқалар <span id="ver-n"></span></button>
           <button class="btn btn--sm glass glass--flat" id="t-qr" type="button">${ic("qr", "ico ico--sm")}QR</button>
-          <button class="btn btn--icon glass glass--flat" id="t-win" type="button" aria-label="Жаңа терезеде ашу" title="Жаңа терезеде ашу">${ic("ext", "ico ico--sm")}</button>
+          <button class="btn btn--sm glass glass--flat t-x" id="t-how" type="button">${ic("code", "ico ico--sm")}Қалай жұмыс істейді?</button>
+          <button class="btn btn--sm glass glass--flat t-x" id="t-pub" type="button">${ic("spark", "ico ico--sm")}Галереяға жариялау</button>
+          <button class="btn btn--sm glass glass--flat t-x t-x2" id="t-html" type="button">${ic("download", "ico ico--sm")}HTML</button>
+          <button class="btn btn--sm glass glass--flat t-x t-x2" id="t-zip" type="button">${ic("download", "ico ico--sm")}ZIP</button>
+          <button class="btn btn--icon glass glass--flat t-x t-x2" id="t-win" type="button" aria-label="Жаңа терезеде ашу" title="Жаңа терезеде ашу">${ic("ext", "ico ico--sm")}</button>
+          <span class="more-wrap t-more">
+            <button class="btn btn--icon glass glass--flat" id="t-more" type="button" aria-label="Тағы" aria-haspopup="menu" aria-expanded="false"><span class="dots" aria-hidden="true">⋯</span></button>
+            <div class="more-menu glass glass--dark" id="more-menu" role="menu" hidden>
+              <button role="menuitem" class="m-only" type="button" data-t="t-undo" id="m-undo">${ic("undo", "ico ico--sm")}Алдыңғы нұсқа</button>
+              <button role="menuitem" class="m-only" type="button" data-t="t-how">${ic("code", "ico ico--sm")}Қалай жұмыс істейді?</button>
+              <button role="menuitem" class="m-only" type="button" data-t="t-pub">${ic("spark", "ico ico--sm")}Галереяға жариялау</button>
+              <button role="menuitem" type="button" data-t="t-html">${ic("download", "ico ico--sm")}HTML жүктеу</button>
+              <button role="menuitem" type="button" data-t="t-zip">${ic("download", "ico ico--sm")}ZIP жүктеу</button>
+              <button role="menuitem" type="button" data-t="t-win">${ic("ext", "ico ico--sm")}Жаңа терезеде ашу</button>
+            </div>
+          </span>
         </div>
-      </div>
-      <div class="res-bar2">
-        <button class="btn btn--sm glass glass--flat" id="t-how" type="button">${ic("code", "ico ico--sm")}Қалай жұмыс істейді?</button>
-        <button class="btn btn--sm glass glass--flat" id="t-pub" type="button">${ic("spark", "ico ico--sm")}Галереяға жариялау</button>
-        <button class="btn btn--sm glass glass--flat" id="t-ver" type="button">${ic("undo", "ico ico--sm")}Нұсқалар <span id="ver-n"></span></button>
       </div>
       <div class="stage" id="stage"><div class="frame-box" id="fb"><iframe id="frame" title="Дайын қосымша" sandbox="${SANDBOX}" referrerpolicy="no-referrer"></iframe></div>
         <div class="busy" id="busy" hidden><div class="ring"></div><div id="busy-t">Өзгертіп жатыр…</div><small id="busy-m"></small><button class="btn btn--sm glass glass--flat" type="button" id="busy-stop">Тоқтату</button></div>
@@ -42,6 +51,16 @@
     ui.frame.srcdoc = Q.check.preview(html());
     $$seg().forEach((b) => (b.onclick = () => { mode = b.dataset.m; $$seg().forEach((x) => x.setAttribute("aria-selected", x === b)); fit(); }));
     $("#t-undo").onclick = undo;
+    // «⋯» мәзірі (телефонда): әр пункт сәйкес жасырын батырманың әрекетін шақырады
+    const mb = $("#t-more"), mm = $("#more-menu");
+    const closeMore = () => { mm.hidden = true; mb.setAttribute("aria-expanded", "false"); };
+    mb.onclick = (e) => { e.stopPropagation(); const o = mm.hidden; mm.hidden = !o; mb.setAttribute("aria-expanded", String(o)); if (o) mm.querySelector("button").focus(); };
+    mm.onclick = (e) => { const it = e.target.closest("[data-t]"); if (!it) return; closeMore(); $("#" + it.dataset.t).click(); };
+    if (!render.bound) {
+      render.bound = true;
+      document.addEventListener("click", (e) => { const m = $("#more-menu"); if (m && !m.hidden && !e.target.closest(".more-wrap")) { m.hidden = true; $("#t-more").setAttribute("aria-expanded", "false"); } });
+      document.addEventListener("keydown", (e) => { const m = $("#more-menu"); if (e.key === "Escape" && m && !m.hidden) { m.hidden = true; $("#t-more").setAttribute("aria-expanded", "false"); $("#t-more").focus(); } });
+    }
     $("#t-how").onclick = () => Q.sheets.explain();
     $("#t-ver").onclick = () => Q.sheets.versions();
     $("#t-pub").onclick = () => Q.gallery.publish();
@@ -154,6 +173,7 @@ ${code}
   function verIdx() { const n = S.data.versions.length, i = S.data.verIdx; return Number.isInteger(i) && i >= 0 && i < n ? i : n - 1; }
   function undoState() {
     const b = $("#t-undo"); if (b) b.disabled = verIdx() < 1;
+    const mu = $("#m-undo"); if (mu) mu.disabled = verIdx() < 1;
     const n = $("#ver-n"); if (n) n.textContent = S.data.versions.length > 1 ? `(${S.data.versions.length})` : "";
   }
   function select(i) {

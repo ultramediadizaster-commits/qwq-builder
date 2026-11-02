@@ -41,13 +41,16 @@ function withShim(html, extra = "") {
 /* ---------- PWA көмекшілері ---------- */
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const HEX = /^#[0-9a-fA-F]{6}$/;
-// негізгі түсті HTML-ден табамыз: theme-color → --accent → --primary/--brand/--main → әдепкі
+// негізгі түсті HTML-ден табамыз: --accent → --primary/--brand/--main → theme-color → әдепкі.
+// Шаблонның theme-color-ы — қараңғы фон, сондықтан тым қараңғы (не тым ашық) түстер белгішеге алынбайды
+const lum = (c) => [1, 3, 5].reduce((a, i, k) => a + parseInt(c.slice(i, i + 2), 16) * [0.2126, 0.7152, 0.0722][k], 0) / 255;
 function pickColor(html) {
-  const cands = [/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,8})["']/i, /--accent\s*:\s*(#[0-9a-fA-F]{3,8})/i, /--(?:primary|brand|main)\s*:\s*(#[0-9a-fA-F]{3,8})/i];
+  const cands = [/--accent\s*:\s*(#[0-9a-fA-F]{3,8})/i, /--(?:primary|brand|main)\s*:\s*(#[0-9a-fA-F]{3,8})/i, /<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,8})["']/i];
   for (const re of cands) {
     const m = html.match(re); if (!m) continue;
     let c = m[1]; if (c.length === 4) c = "#" + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
-    if (HEX.test(c.slice(0, 7))) return c.slice(0, 7);
+    c = c.slice(0, 7);
+    if (HEX.test(c) && lum(c) > 0.12 && lum(c) < 0.92) return c;
   }
   return "#0a84ff";
 }
@@ -174,7 +177,7 @@ export default {
       const rec = env.SHARES ? await env.SHARES.getWithMetadata(id) : { value: null };
       if (rec.value === null) return new Response("Қосымша табылмады немесе мерзімі өтті", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", ...CORS } });
       const meta = Object.assign({}, rec.metadata);
-      if (!meta.color) meta.color = pickColor(rec.value);
+      meta.color = pickColor(rec.value);   // әрдайым HTML-ден (ескі жазбалардағы қате түс те түзеледі)
       if (part === "manifest.json") return new Response(JSON.stringify(manifest(id, meta)), { headers: { "Content-Type": "application/manifest+json; charset=utf-8", "Cache-Control": "public, max-age=300" } });
       if (part === "sw.js") return new Response(swSource(id), { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-cache", "Service-Worker-Allowed": `/s/${id}` } });
       if (part === "icon.svg") return new Response(iconSvg(meta.title, meta.color), { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" } });
