@@ -6,7 +6,8 @@
   // iframe ішінде орындалады (ES2017). __ID__ орнына тексеру нөмірі қойылады.
   const PROBE = String.raw`(function(){
 var I=__ID__,W=window,post=function(t,m){try{parent.postMessage({qwq:I,t:t,m:m},"*")}catch(e){}};
-var errs=[],ctx=null,dlg=0,mut=0,lsw=0;
+var errs=[],ctx=null,dlg=0,mut=0,lsw=0,scr=0;
+try{var _si=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(){scr++;try{return _si.apply(this,arguments)}catch(e){}};["scrollTo","scrollBy","scroll"].forEach(function(k){var f=window[k];window[k]=function(){scr++;try{return f.apply(window,arguments)}catch(e){}}})}catch(e){}
 function err(m){errs.push({m:String(m).slice(0,260),ctx:ctx})}
 W.addEventListener("error",function(e){err((e.message||"Қате")+(e.lineno?" (жол "+e.lineno+")":""))});
 W.addEventListener("unhandledrejection",function(e){var r=e.reason;err("Promise: "+(r&&r.message||r))});
@@ -32,6 +33,7 @@ function visible(el){
   var s=getComputedStyle(el);if(s.visibility==="hidden"||s.display==="none"||s.pointerEvents==="none")return false;
   return true}   // opacity тексерілмейді: көрінбейтін iframe-де CSS анимациясы бірінші кадрда (opacity:0) қатып тұрады
 function actionable(el){
+  if(el.closest&&el.closest("#touch"))return false;
   if(el.tagName==="A"){var h=el.getAttribute("href")||"";if(!(h.charAt(0)==="#"||/^javascript:/i.test(h)))return false}
   if(el.tagName==="INPUT"&&!/^(button|submit|reset)$/i.test(el.type))return false;
   if(el.tagName==="LABEL"||el.tagName==="OPTION")return false;
@@ -68,6 +70,34 @@ function staticIssues(){
   [].forEach.call(document.querySelectorAll("[data-open]"),function(el){if(!document.getElementById(el.dataset.open))out.push("«"+label(el)+"» батырмасы data-open=\""+el.dataset.open+"\" терезесін ашады, бірақ ондай id жоқ")});
   return out}
 
+function rt(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function vis(el){var r=el.getBoundingClientRect();if(!(r.width>0&&r.height>0))return false;var s=getComputedStyle(el);return s.visibility!=="hidden"&&s.display!=="none"}
+function visText(){var n=0,w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),t;while(t=w.nextNode()){var s=t.nodeValue.replace(/\s+/g,"");if(!s)continue;var p=t.parentElement;if(p&&!/^(SCRIPT|STYLE|NOSCRIPT)$/.test(p.tagName)&&vis(p))n+=s.length}return n}
+function chash(c){try{var x=c.getContext("2d");if(!x)return null;var w=c.width,h=c.height;if(!w||!h)return {h:0,n:0};var d=x.getImageData(0,0,w,h).data,a=0,n=0,st=d.length>12000000?16:4;for(var i=0;i<d.length;i+=st){a=(Math.imul(a,31)+d[i]+d[i+1]*3+d[i+2]*7+d[i+3]*13)|0;if(d[i+3]>0)n++}return {h:a,n:n}}catch(e){return null}}
+function renderInfo(){
+  var all=[].slice.call(document.querySelectorAll(".screen")),cv=[].filter.call(document.querySelectorAll("canvas"),vis),media=[].filter.call(document.querySelectorAll("img,svg,video"),vis).length;
+  var shown=all.filter(function(s){return vis(s)}).length,painted=-1;
+  cv.forEach(function(c){var h=chash(c);if(h)painted=Math.max(painted,h.n)});
+  return {text:document.body?visText():0,screens:all.length,shown:shown,canv:cv.length,painted:painted,media:media}}
+async function gameTest(){
+  if(!W.Game||!W.__game)return null;
+  var cvs=document.getElementById("c");if(!cvs)return null;
+  function key(code,down){try{W.dispatchEvent(new KeyboardEvent(down?"keydown":"keyup",{code:code,key:code,bubbles:true}))}catch(e){}}
+  var keys=["ArrowRight","ArrowLeft","ArrowUp","Space"],hs=[],painted=0,f0,st0;
+  function snap(){var h=chash(cvs);if(h){hs.push(h.h);painted=Math.max(painted,h.n)}}
+  snap();
+  try{W.Game.start()}catch(e){err("Game.start: "+e.message)}
+  f0=W.__game.frames;st0=W.__game.state;
+  var lf=f0;
+  async function adv(ms){await rt(ms);if(W.__game.frames-lf<3&&W.Game.step)W.Game.step(Math.round(ms/16));lf=W.__game.frames}   // rAF жұмыс істемесе (жасырын қойынды/фрейм), кадрларды қолмен жүргіземіз
+  await adv(450);snap();
+  keys.forEach(function(c){key(c,true)});
+  await adv(350);snap();
+  keys.forEach(function(c){key(c,false)});
+  await adv(350);snap();
+  await adv(350);snap();
+  var changed=false;for(var i=1;i<hs.length;i++)if(hs[i]!==hs[0])changed=true;
+  return {frames:W.__game.frames-f0,started:st0==="play",state:W.__game.state,score:W.__game.score,painted:painted,changed:changed}}
 async function main(){
   var t0=Date.now(),dead=[],btns=[],clicked=0,nohandler=0,tested=new WeakSet();
   var stat=staticIssues();
@@ -77,6 +107,9 @@ async function main(){
   function nextEl(){var all=document.querySelectorAll(SEL);for(var i=0;i<all.length;i++){var el=all[i];if(!tested.has(el)&&actionable(el)&&visible(el))return el}return null}
   for(var wv=0;wv<30&&!(W.innerWidth>0&&document.body&&document.body.getBoundingClientRect().height>0);wv++)await new Promise(function(r){setTimeout(r,100)});   // iframe өлшемі әлі 0 болса, күтеміз
   var info={text:document.body?(document.body.innerText||"").trim().length:0,kids:document.body?document.body.children.length:0,act:document.querySelectorAll(SEL).length};
+  var rn0=null,gm=null;
+  try{rn0=renderInfo()}catch(e){err("render: "+e.message)}
+  try{gm=await gameTest()}catch(e){err("ойын сынағы: "+e.message)}
   for(var n=0;n<70&&Date.now()-t0<__BUDGET__;n++){
     var el=nextEl();if(!el)break;
     tested.add(el);
@@ -84,15 +117,16 @@ async function main(){
     fill();
     var hh=hasHandler(el);if(!hh)nohandler++;
     ctx=label(el);
-    var m0=mut,l0=lsw,d0=dlg,e0=errs.length,h0=location.hash;
+    var m0=mut,l0=lsw,d0=dlg,e0=errs.length,h0=location.hash,s0=scr,a0=document.activeElement;
     try{el.click()}catch(e){err("click: "+e.message)}
     await sleep(__WAIT__);
-    var eff=mut>m0||lsw>l0||dlg>d0||location.hash!==h0;
+    var eff=mut>m0||lsw>l0||dlg>d0||location.hash!==h0||scr>s0||document.activeElement!==a0;
     var bad=errs.length>e0;
     if(!eff&&!bad)dead.push({label:label(el),sel:sel(el),handler:hh});
     btns.push({l:label(el),ok:eff&&!bad,n:bad?"қате":!eff?"әрекет жоқ":""});
     ctx=null;clicked++}
-  post("r",JSON.stringify({errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info,btns:btns}))}
+  var rn1=null;try{rn1=renderInfo()}catch(e){}
+  post("r",JSON.stringify({errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info,btns:btns,rn0:rn0,rn1:rn1,game:gm}))}
 function start(){main().catch(function(e){err("тексеру: "+e.message);post("r",JSON.stringify({errs:errs,dead:[],stat:[],clicked:0,nohandler:0,info:null}))})}
 if(document.readyState==="complete")setTimeout(start,350);else W.addEventListener("load",function(){setTimeout(start,350)});
 })()`;
@@ -138,11 +172,23 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
         errors.slice(0, 5).forEach((m) => issues.push("JS қате: " + m));
         dead.slice(0, 10).forEach((d) => issues.push(`Өлі батырма: «${d.label}» (${d.sel}) — басқанда ештеңе өзгермейді${d.handler ? " (өңдегіш бар, бірақ әрекет жоқ)" : " (өңдегіш тағылмаған)"}`));
         stat.slice(0, 5).forEach((m) => issues.push(m));
+        if (res) {
+          const a = res.rn0, b = res.rn1, g = res.game;
+          const emptyView = (x) => x && x.text < 4 && !x.canv && !x.media;
+          if (emptyView(a) && emptyView(b)) issues.unshift("Бет бос: көрінетін мәтін де, сурет те, canvas та жоқ (бет ақ/қара күйінде қалды)");
+          else if (a && a.screens > 0 && a.shown === 0 && b && b.shown === 0) issues.unshift("Барлық экрандар жасырын: бірде-бір .screen көрінбейді (.screen.on берілмеген немесе id қате)");
+          if (a && a.canv && a.painted === 0 && !g) issues.unshift("Canvas бос: ештеңе сызылмаған (draw функциясы шақырылмайды немесе қате)");
+          if (g) {
+            if (g.frames < 4) issues.unshift("Ойын циклі жүрмейді: Game.run шақырылмаған немесе update/draw қате (кадр саны " + g.frames + ")");
+            else if (!g.painted) issues.unshift("Ойын алаңы бос: draw функциясы ештеңе сызбайды");
+            else if (!g.changed) issues.unshift("Ойын кадрлары өзгермейді: қозғалыс/анимация жоқ немесе басқару жұмыс істемейді");
+          }
+        }
         if (!/<\/html>\s*$/i.test(html.trim())) issues.push("Код </html> тегімен аяқталмаған");
         if (!res) issues.push("Бет жүктелмеді немесе тексеру уақыты біттi");
         else if (res.info && !res.info.text && !res.info.kids) issues.push("Бет бос");
         else if (res.info && !res.info.act) issues.push("Басатын батырма немесе өріс жоқ");
-        resolve({ errors, dead, stat, issues, clicked: res ? res.clicked : 0, act: res && res.info ? res.info.act : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
+        resolve({ rn: res && res.rn1, game: res && res.game, errors, dead, stat, issues, clicked: res ? res.clicked : 0, act: res && res.info ? res.info.act : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
       };
       const on = (e) => {
         if (e.source !== f.contentWindow || !e.data || e.data.qwq !== id || e.data.t !== "r") return;

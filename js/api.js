@@ -11,6 +11,7 @@
     if (typeof detail !== "string") detail = "";
     switch (true) {
       case st === 401 || st === 403: return "API кілті қате немесе қолданыста емес. Баптаулардан кілтті тексер.";
+      case st === 402: return "QWQ квотасы бітті немесе төлем қажет (402). Кейінірек байқап көр не демо режимін қос.";
       case st === 404: return "Сервер мекенжайы табылмады (404). Баптаулардағы мекенжайды тексер.";
       case st === 413: return "Сұрау тым үлкен (413). Хабарламаны қысқартып көр.";
       case st === 429: return "Сұраулар лимиті біткен сияқты (429). Сәл күтіп, қайта байқап көр.";
@@ -129,7 +130,7 @@
     let last;
     const max = o.tries || MAX_TRIES;     // міндетті емес сұраулар (мысалы, іздеу) үшін азырақ әрекет
     for (let i = 0; i < max; i++) {
-      try { return await once(o); }
+      try { const t0 = performance.now(); const r = await once(o); Q.demo && Q.demo.record && Q.demo.record(o, r, performance.now() - t0); return r; }
       catch (e) {
         if (!(e instanceof QErr)) throw e;
         last = e;

@@ -99,6 +99,7 @@
 
   <!-- ТӨМЕНГІ ҚАБАТ -->
   <div class="bottom" id="bottom">
+    <div class="diffbar glass glass--dark" id="diffbar" hidden></div>
     <div class="dock" id="dock-chat">
       <form class="composer glass lens" id="composer" autocomplete="off">
         <textarea id="input" rows="1" placeholder="Идеяңды жаз…" aria-label="Хабарлама" enterkeyhint="send"></textarea>
@@ -168,6 +169,7 @@
       <button class="btn glass glass--flat" id="set-save" type="button">Сақтау</button>
       <button class="btn glass glass--flat" id="set-limit" type="button">Лимит</button>
       <button class="btn glass glass--flat" id="set-demo" type="button">Демо</button>
+      <button class="btn glass glass--flat" id="set-rec" type="button" title="Нақты іске қосуды жазып алу (демо үшін)">Жазу</button>
       <button class="btn glass glass--flat btn--danger" id="set-clear" type="button"><svg class="ico ico--sm"><use href="#i-trash"/></svg>Тазалау</button>
     </div>
   </div>
@@ -196,6 +198,8 @@
 <script src="js/check.js"></script>
 <script src="js/cloud-config.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/styles.js"></script>
+<script src="js/gametpl.js"></script>
 <script src="js/template.js"></script>
 <script src="js/codegen.js"></script>
 <script src="js/fix.js"></script>
@@ -208,6 +212,7 @@
 <script src="js/share.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/chats.js"></script>
+<script src="js/demo-recording.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/onboarding-steps.js"></script>
 <script src="js/onboarding-beats.js"></script>

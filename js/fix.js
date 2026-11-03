@@ -39,7 +39,7 @@ ${fence("js", o.js)}`,
         if (p.file === "html") { if (body.includes(p.find)) { body = body.replace(p.find, () => p.replace); applied++; } }
         else if (js.includes(p.find)) { js = js.replace(p.find, () => p.replace); applied++; }
       }
-      if (applied && syntaxOk(js)) return { js, body, html: Q.template.build(o.title, body, o.css, js) };   // синтаксисі бұзылса, патч қабылданбайды
+      if (applied && syntaxOk(js)) return { js, body, html: Q.template.build(o.title, body, o.css, js, o.meta) };   // синтаксисі бұзылса, патч қабылданбайды
     } catch (e) { if (e.code === "abort") throw e; }
 
     const r = await Q.api.chat({
@@ -50,7 +50,7 @@ ${fence("js", o.js)}`,
     const m = r.answer.match(/```(?:js|javascript)[ \t]*\n([\s\S]*?)(?:\n[ \t]*```|$)/i) || r.answer.match(/```[a-zA-Z]*[ \t]*\n([\s\S]*?)(?:\n[ \t]*```|$)/);
     const js = (m ? m[1] : r.answer).trim();
     if (js.length < 0.6 * o.js.length || /^\s*</.test(js) || !syntaxOk(js)) return null;     // қысқарса, HTML болса немесе синтаксисі бұзылса — қабылдамаймыз
-    return { js, body: o.body, html: Q.template.build(o.title, o.body, o.css, js) };
+    return { js, body: o.body, html: Q.template.build(o.title, o.body, o.css, js, o.meta) };
   }
 
   /** AI тексеруі: жоспардағы функциялар кодта толық жасалған ба, әр батырма әрекетке қосылған ба → ақаулар тізімі (қазақша) */

@@ -95,6 +95,11 @@
       Q.demo.set(on); closeSettings();
       if (on) Q.demo.play(); else toast("Демо өшірулі", "ok", 1800);
     };
+    $("#set-rec").onclick = () => {
+      let on = false; try { on = localStorage.getItem("qwq.rec") === "1"; } catch (e) {}
+      if (on) { Q.demo.exportRecording(); $("#set-rec").textContent = "Жазу"; toast("Жазба жүктелді: demo-recording.js файлын js/ папкасына сал.", "ok", 6000); }
+      else { Q.demo.startRecording(); $("#set-rec").textContent = "Жазбаны жүктеу"; toast("Жазу қосылды: енді бір нақты іске қосу жаса, сосын осы батырманы бас.", "ok", 6000); }
+    };
     $("#set-eye").onclick = () => { const i = $("#set-key"); i.type = i.type === "password" ? "text" : "password"; };
     $("#set-clear").onclick = async () => {
       if (Q.chat.isBusy() || Q.code.isRunning()) { toast("Жұмыс аяқталғанша күте тұр", "err", 3000); return; }
@@ -110,6 +115,8 @@
     go(VIEWS.includes(h) && (h === "chat" || S.data.idea) ? h : "chat");
     Q.tour && Q.tour.init();
     window.addEventListener("offline", () => toast("Интернет байланысы үзілді.", "err"));
+    window.addEventListener("online", () => toast("Байланыс қайта қосылды.", "ok", 2500));
+    window.addEventListener("unhandledrejection", (e) => { console.warn("QWQ:", e.reason); e.preventDefault(); });
     window.addEventListener("error", (e) => console.warn("QWQ:", e.message));
   }
   document.addEventListener("DOMContentLoaded", init);

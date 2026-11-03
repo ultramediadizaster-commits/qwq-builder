@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>QWQ Builder smoke tests</title>
+<body style="font:14px monospace;background:#000;color:#ddd;padding:16px"><pre id="out"></pre>
+<script>
+/* Тест беті: index.html-ді iframe-ге жүктеп, API-ді fetch mock-пен тексереді. Нақты API шақырылмайды. */
+const out = document.getElementById("out"); let pass = 0, fail = 0;
+const log = (ok, name, extra) => { ok ? pass++ : fail++; out.textContent += (ok ? "✓ " : "✗ ") + name + (extra ? "  → " + extra : "") + "\n"; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  localStorage.setItem("qwq.demo", "0"); localStorage.setItem("qwq.tour.done", "1");
+  const f = document.createElement("iframe"); f.src = "../index.html"; f.style.cssText = "width:390px;height:700px;border:0"; document.body.appendChild(f);
+  await new Promise((r) => (f.onload = r)); await sleep(800);
+  const W = f.contentWindow, Q = W.QWQ;
+  Q.store.key = "test-key"; Q.demo.active = false;
+  const mock = (fn) => { W.fetch = fn; };
+  const resp = (st, body, hdr) => new W.Response(typeof body === "string" ? body : JSON.stringify(body), { status: st, headers: hdr || {} });
+  const expect = async (name, fn, re, code) => {
+    try { await Q.api.chat({ message: "x", stream: false, tries: 1 }); log(false, name, "қате күтілген, шықпады"); }
+    catch (e) { log(re.test(e.message) && (!code || e.code === code), name, e.message); }
+  };
+  mock(async () => resp(402, { error: "payment" })); await expect("402 → түсінікті хабар", 0, /\(402\)|Сұрау орындалмады/);
+  mock(async () => resp(429, {}, { "retry-after": "1" })); await expect("429 → лимит хабары", 0, /лимит/);
+  mock(async () => resp(503, {})); await expect("503 → сервер жауап бермеді", 0, /503/);
+  mock(async () => resp(401, {})); await expect("401 → кілт қате", 0, /кілт/);
+  mock(async () => { throw new TypeError("Failed to fetch"); }); await expect("желі қатесі → қазақша", 0, /Интернет|қосылу/);
+  mock(async () => resp(200, { answer: "" })); await expect("бос жауап → хабар", 0, /бос жауап/, "empty");
+  mock(async () => resp(200, "<html>not json")); await expect("JSON емес жауап → хабар", 0, /түсініксіз/);
+  mock(async () => resp(200, { answer: "Сәлем" }));
+  try { const r = await Q.api.chat({ message: "x", stream: false, tries: 1 }); log(r.answer === "Сәлем", "қалыпты жауап"); } catch (e) { log(false, "қалыпты жауап", e.message); }
+  // идея JSON талдау
+  log(!!Q.api.parseJSON('```json\n{"title":"a","prompt":"b",}\n```'), "parseJSON ақаулы JSON-ды түзетеді");
+  // демо толық жүріс
+  Q.demo.set(true); await Q.demo.play();
+  const D = Q.store.data;
+  log(D.messages.length >= 2, "демо: чат хабарламалары", D.messages.length);
+  log(!!D.idea && !!D.idea.prompt, "демо: идея/промпт бар");
+  log(!!D.files.plan && !!D.files.info && !!D.files.html, "демо: plan/info/html файлдары");
+  log(D.versions.length >= 1, "демо: нәтиже нұсқасы", D.versions.length);
+  log(/<html/i.test(D.files.html) && /<\/html>/i.test(D.files.html), "демо: HTML толық");
+  log(Q.store.list().length >= 1, "чат тарихында жазба бар");
+  const n0 = Q.store.list().length; Q.chats.newChat(); log(Q.store.list().length >= n0 && Q.store.data.messages.length === 0, "жаңа чат бос ашылады");
+  // ---- 2-кезең: көрініс тексерісі, түр/стиль, ойын, өзгерту режимі ----
+  const T = (b, c, j, m) => Q.template.build("T", b, c, j, m);
+  const iss = async (h) => (await Q.check.run(h)).issues;
+  log((await iss(T("<div></div>", "", "", {}))).some((x) => /^Бет бос/.test(x)), "бос бет анықталады");
+  log((await iss(T('<section class="screen on" id="a"><h1>Сәлем әлем</h1><button class="btn" id="b">Бас</button></section>', "", '$("#b").addEventListener("click",function(){toast("x")})', {}))).length === 0, "қалыпты бет ақаусыз");
+  log((await iss(T('<canvas id="q" width="200" height="100"></canvas><button class="btn" id="b">x</button>', "", 'document.getElementById("b").onclick=function(){document.title="a"}', {}))).some((x) => /^Canvas бос/.test(x)), "бос canvas анықталады");
+  const gjs = 'var P={x:0,t:0};Game.run({title:"T",controls:["left","right","a"],init:function(G){P.x=G.W/2;P.t=0},update:function(dt,G){P.t+=dt;P.x+=Math.sin(P.t*3)*3;G.add(dt*10)},draw:function(c,W,H){c.fillStyle="#123";c.fillRect(0,0,W,H);c.fillStyle="#0ff";c.fillRect(P.x,H-80,40,20)}});';
+  const gr = await Q.check.run(T("<!-- g -->", "", gjs, { type: "game", style: "neon" }));
+  log(gr.issues.length === 0 && gr.game && gr.game.frames > 4 && gr.game.changed, "ойын: кадрлар жүреді және өзгереді", JSON.stringify(gr.game));
+  log((await iss(T("<!-- g -->", "", 'Game.run({title:"x",controls:[],init:function(){},update:function(){},draw:function(){}});', { type: "game" }))).some((x) => /^Ойын алаңы бос/.test(x)), "ештеңе сызбайтын ойын анықталады");
+  log((await iss(T("<!-- g -->", "", "var a=1;", { type: "game" }))).some((x) => /^Ойын циклі жүрмейді/.test(x)), "Game.run жоқ ойын анықталады");
+  log((await iss(T('<div class="screen"><h1>Мәтін бар бет</h1><button class="btn" id="b">Бас</button></div>', "", '$("#b").addEventListener("click",function(){toast("x")})', {}))).every((x) => !/Барлық экрандар/.test(x)), "id-сіз .screen шаблонмен құтқарылады (бос бет жоқ)");
+  // түр және стиль
+  const cl = Q.styles.classify;
+  log(cl("Ғарыш шутері ойыны") === "game" && cl("кофехана лендингі") === "landing" && cl("ипотека калькуляторы") === "tool" && cl("сөз жаттау картасы") === "learn" && cl("кіріс шығыс дашборд") === "dashboard", "түр анықтау");
+  localStorage.removeItem("qwq.styles.recent");
+  const seq = []; for (let i = 0; i < 14; i++) seq.push(Q.styles.pick("landing").id);
+  let rep = false; for (let i = 3; i < seq.length; i++) if (seq.slice(i - 3, i).includes(seq[i])) rep = true;
+  log(!rep && new Set(seq).size >= 4, "стиль қатарынан қайталанбайды", seq.join(","));
+  log(Q.styles.pick("tool", "neon").id === "neon" && Q.styles.STYLES.length >= 12, "қалаулы стиль + кітапхана ≥12");
+  // толық конвейер (mock модельмен): 3 түр — 3 түрлі стиль
+  await new Promise((r) => { const sc = W.document.createElement("script"); sc.src = "tests/stub.js"; sc.onload = r; W.document.body.appendChild(sc); });
+  const runs = {}; for (const k of ["game", "landing", "tool"]) runs[k] = await W.QWQ_TEST.run(k);
+  log(["game", "landing", "tool"].every((k) => runs[k].type === k && runs[k].hasHtml && runs[k].versions === 1), "конвейер: 3 түр аяғына дейін өтті", JSON.stringify(["game", "landing", "tool"].map((k) => runs[k].type + ":" + runs[k].style)));
+  log(new Set(["game", "landing", "tool"].map((k) => runs[k].style)).size === 3, "3 қосымша — 3 түрлі стиль");
+  log(runs.tool.left.length === 0 && runs.game.left.length === 0, "ойын мен құрал тексеруден ақаусыз өтті", JSON.stringify([runs.tool.left, runs.game.left]));
+  const fx = await Q.codegen.repair({ title: "T", brief: "x", plan: "", meta: { type: "tool", style: "corp" }, body: "<div></div>", css: "", js: "", errors: ["Бет бос: тест"], sig: null });
+  log(!!fx && /Ипотека/.test(fx.html), "бос бет → қатемен қайта жазу (repair) жұмыс істейді");
+  const v0 = Q.store.data.versions.length;
+  await Q.result.tweak("түсін көк ет");
+  const D2 = Q.store.data;
+  log(D2.versions.length === v0 + 1 && /--accent:#2f7dff/.test(D2.files.html) && !W.document.querySelector("#diffbar").hidden, "өзгерту: патч, дифф көрінеді, жаңа нұсқа");
+  W.document.querySelector("#diff-undo").click(); await sleep(300);
+  log(!/--accent:#2f7dff/.test(Q.store.data.files.html) && Q.result.verIdx() === v0 - 1, "«Қайтару» бақылау нүктесіне оралтады");
+  W.QWQ_TEST.restore();
+  out.textContent += `\n${pass} өтті, ${fail} құлады\n`; document.title = fail ? "FAIL" : "PASS"; window.__done = { pass, fail };
+})().catch((e) => { out.textContent += "\nТЕСТ ҚАТЕСІ: " + e + "\n"; window.__done = { pass, fail: fail + 1 }; });
+</script>

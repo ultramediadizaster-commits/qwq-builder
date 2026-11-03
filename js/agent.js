@@ -10,11 +10,12 @@
     { k: "search", t: "Интернеттен іздеу", i: "globe", d: "" },
     { k: "code", t: "Кодты жазу", i: "code", d: "" },
     { k: "verify", t: "Тексеру", i: "shield", d: "" },
+    { k: "improve", t: "Жақсарту", i: "spark", d: "" },
     { k: "done", t: "Дайын", i: "flag", d: "" },
   ];
   const FILES = {
     plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" },
-    html: { name: "index.html", i: "code" },
+    html: { name: "index.html", i: "code" }, css: { name: "style.css", i: "file" }, js: { name: "app.js", i: "code" },
   };
 
   const R = { active: false, bg: false, bgId: 0, bgCtrl: null, ctrl: null, t0: 0, tick: 0, hide: false, auto: false, open: null, ui: {}, stepT: {} };
@@ -54,10 +55,12 @@
       <article class="card glass">
         <h2>${esc(idea.title)}</h2>
         <p class="sum">${esc(idea.summary)}</p>
+        <div class="style-row"><span class="eyebrow">Стиль</span><div class="style-chips" id="style-chips" role="radiogroup" aria-label="Дизайн стилі">${Q.styles.CHIPS.map((c) => `<button type="button" class="schip${(idea.style || "auto") === c.id ? " on" : ""}" data-s="${c.id}" role="radio" aria-checked="${(idea.style || "auto") === c.id}">${c.name}</button>`).join("")}</div></div>
         <button class="toggle-prompt" type="button" id="tp" aria-expanded="false" aria-controls="pbox">Толық промпт ${ic("chev", "ico ico--sm")}</button>
         <textarea class="prompt-box" id="pbox" hidden aria-label="Толық промпт"></textarea>
         <div class="row">
-          <button class="btn btn--primary btn--lg glass lens" type="button" id="go-agent">${ic("spark")}${hasHtml ? "Қайта жасау" : "Агентке жіберу"}</button>
+          <button class="btn btn--lg glass ${hasHtml ? "glass--flat" : "btn--primary lens"}" type="button" id="go-agent">${ic("spark")}${hasHtml ? "Қайта жасау" : "Агентке жіберу"}</button>
+          <button class="btn btn--primary btn--lg glass lens" type="button" id="to-result" ${hasHtml && !R.active ? "" : "hidden"}>${ic("result")}Нәтижеге өту</button>
           <button class="btn btn--lg glass glass--flat" type="button" id="stop-agent" hidden>${ic("stop", "ico ico--sm")}Тоқтату</button>
         </div>
       </article>
@@ -80,11 +83,17 @@
         <div class="viewer-bar"><span id="v-name"></span><span style="display:flex;gap:4px"><button class="btn btn--icon btn--sm glass-none" id="v-copy" type="button" aria-label="Көшіру">${ic("copy", "ico ico--sm")}</button><button class="btn btn--icon btn--sm" id="v-close" type="button" aria-label="Жабу">${ic("x", "ico ico--sm")}</button></span></div>
         <pre class="codeview tall" id="v-code"></pre>
       </article>`;
-    const u = R.ui = { steps: $("#steps"), timer: $("#timer"), live: $("#live"), liveCode: $("#live-code"), liveM: $("#live-m"), liveName: $("#live-name"), files: $("#files"), viewer: $("#viewer"), peek: $("#peek"), go: $("#go-agent"), stop: $("#stop-agent"), card: $("#agent-card"), mini: $("#mini"), miniFrame: $("#mini-frame") };
+    const u = R.ui = { steps: $("#steps"), timer: $("#timer"), live: $("#live"), liveCode: $("#live-code"), liveM: $("#live-m"), liveName: $("#live-name"), files: $("#files"), viewer: $("#viewer"), peek: $("#peek"), go: $("#go-agent"), toRes: $("#to-result"), stop: $("#stop-agent"), card: $("#agent-card"), mini: $("#mini"), miniFrame: $("#mini-frame") };
     const pb = $("#pbox"); pb.value = idea.prompt;
     pb.oninput = () => { idea.prompt = pb.value; S.save(); };
     $("#tp").onclick = (e) => { const x = e.currentTarget; const o = x.getAttribute("aria-expanded") !== "true"; x.setAttribute("aria-expanded", o); pb.hidden = !o; };
     u.go.onclick = run;
+    $("#style-chips").onclick = (e) => {
+      const b = e.target.closest(".schip"); if (!b || R.active) return;
+      idea.style = b.dataset.s; S.save();
+      Q.$$(".schip").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", on); });
+    };
+    u.toRes.onclick = () => Q.go("result");
     u.stop.onclick = () => R.ctrl && R.ctrl.abort();
     u.peek.onclick = peek;
     $("#v-close").onclick = () => { R.open = null; u.viewer.hidden = true; $$files(); };
@@ -135,7 +144,7 @@
     if (state === "done" || state === "warn") li.querySelector(".s-time").textContent = ((performance.now() - (R.stepT[k] || R.t0)) / 1000).toFixed(1) + " с";
   }
   function setRunUI(on) {
-    R.ui.go.hidden = on; R.ui.stop.hidden = !on;
+    R.ui.go.hidden = on; R.ui.stop.hidden = !on; R.ui.toRes.hidden = true;
     R.ui.card.hidden = false;
     R.ui.peek.hidden = false;
     R.ui.peek.innerHTML = `${ic("eye", "ico ico--sm")}${R.hide ? "Кодты көрсету" : "Нәтижені бірден көру"}`;
@@ -195,7 +204,7 @@
   /* ---------- ТЕКСЕРУ ("Дайын" дейін): нақты басып көру + AI тексеруі → ақауларды түзету (ең көбі 3 айналым) ---------- */
   const plural = (n, w) => `${n} ${w}`;
   // ақаулардың салмағы: JS қате/бос бет — ауыр, өлі батырма — орташа, AI ескертуі — жеңіл
-  const score = (issues) => issues.reduce((a, x) => a + (/^AI тексеруі/.test(x) ? 1 : /^(JS қате|Бет|Код|Басатын)/.test(x) ? 5 : 3), 0);
+  const score = (issues) => issues.reduce((a, x) => a + (/^AI тексеруі/.test(x) ? 1 : /^(JS қате|Бет|Код|Басатын|Барлық|Canvas|Ойын)/.test(x) ? 5 : 3), 0);
   /** Ақаулардың қысқа, түсінікті жиынтығы: «3 батырма жұмыс істемейді · 1 қате» */
   function summarize(chk, aiN) {
     const parts = [];
@@ -209,8 +218,9 @@
 
   async function verify(out, T, sig) {
     const idea = S.data.idea, F = S.data.files;
-    let code = out.html, body = out.body, js = out.js, fixes = 0, aiIssues = [];
-    let best = { html: code, body, js, issues: null, text: "" };
+    let code = out.html, body = out.body, css = out.css, js = out.js, fixes = 0, aiIssues = [];
+    const meta = S.data.meta || {};
+    let best = { html: code, body, css, js, issues: null, text: "" };
     const errBox = $("#errs");
     const showIssues = (list) => {
       if (!errBox) return;
@@ -219,7 +229,7 @@
     };
     const pickBest = (issues, text) => {
       const sc = score(issues);
-      if (best.issues === null || sc <= best.score) best = { html: code, body, js, issues, text, score: sc };
+      if (best.issues === null || sc <= best.score) best = { html: code, body, css, js, issues, text, score: sc };
     };
     const tv = performance.now();
     setStep("verify", "active", "Іске қосып, батырмаларды басып тексеріп жатыр…");
@@ -227,7 +237,7 @@
     const endChk = T.begin("тексеру (басу + AI)");
     const [chk0, ai] = await Promise.all([
       Q.check.run(code),
-      Q.codegen.review({ plan: F.plan || "", body, js, sig }).catch((e) => { if (e.code === "abort") throw e; return []; }),
+      (meta.type === "game" ? Promise.resolve([]) : Q.codegen.review({ plan: F.plan || "", body, js, sig })).catch((e) => { if (e.code === "abort") throw e; return []; }),
     ]);
     endChk();
     aiIssues = ai;
@@ -246,9 +256,15 @@
       await Q.sleep(700);
       setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
       const endFix = T.begin(`түзету ${fixes}`);
-      const fx = await Q.codegen.fixJs({ title: idea.title, body, css: out.css, js, errors: issues, sig });
+      let fx = null;
+      if (issues.some(Q.codegen.isRenderIssue)) {
+        // бос бет / жасырын экран / жүрмейтін ойын: жалғыз патч жеткіліксіз — толық қайта жазу, қате мәтінімен
+        setStep("verify", "active", `Бет көрінбейді, қатемен қайта жазып жатыр… (${fixes}/3)`);
+        fx = await Q.codegen.repair({ title: idea.title, brief: brief(idea), plan: F.plan || "", meta, body, css, js, errors: issues, sig }).catch((e) => { if (e.code === "abort") throw e; return null; });
+      }
+      if (!fx) fx = await Q.codegen.fixJs({ title: idea.title, body, css, js, errors: issues, sig, meta });
       endFix();
-      if (fx) { js = fx.js; body = fx.body; code = fx.html; }
+      if (fx) { js = fx.js; body = fx.body; if (fx.css != null) css = fx.css; code = fx.html; }
       setStep("verify", "active", "Қайта тексеріп жатыр…");
       const endRe = T.begin(`қайта тексеру ${fixes}`);
       chk = await Q.check.run(code);
@@ -264,7 +280,8 @@
       setStep("verify", "warn", `${best.text}${names ? ": " + names : ""} — кей жерлері жұмыс істемеуі мүмкін`);
     }
     const report = Q.report.build({ found, left, fixes, chk, sec: (performance.now() - tv) / 1000, rounds: fixes + 1 });
-    return { html: best.html, body: best.body, js: best.js, fixes, left, report };
+    const blank = left.some((x) => /^(Бет бос|Барлық экрандар)/.test(x));
+    return { html: best.html, body: best.body, css: best.css, js: best.js, fixes, left, report, blank, chk };
   }
 
   async function run() {
@@ -285,9 +302,16 @@
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
     const sig = R.ctrl.signal, T = perf();
     let cur = "plan";
+    // жоба түрі мен дизайн бағыты: сұрауға қарай, соңғы қолданылғандарды қайталамай
+    const type = Q.styles.classify(idea.title + " " + idea.summary) !== "app" ? Q.styles.classify(idea.title + " " + idea.summary) : Q.styles.classify(idea.prompt);
+    const st = Q.styles.pick(type, idea.style);
+    const meta = S.data.meta = { type, style: st.id };
+    const split = type !== "game" && (type === "dashboard" || idea.prompt.length > 1300);
+    S.save();
     try {
       /* 1+2. Жоспар және интернеттен іздеу ПАРАЛЛЕЛЬ */
       setStep("plan", "active", ""); setStep("search", "active", "");
+      console.log(`[QWQ] түрі: ${type}, стиль: ${st.id}${split ? ", кезекпен жазу" : ""}`);
       const planP = (async () => {
         const end = T.begin("жоспар");
         const tick = throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`));
@@ -344,7 +368,7 @@
 
       /* 3. Кодты БІР сұраумен жазу (дайын үлгіге мазмұн + логика) */
       cur = "code";
-      setStep("code", "active", "");
+      setStep("code", "active", `${Q.styles.typeName(type)} · ${st.name}`);
       R.ui.live.dataset.on = "1"; R.ui.live.hidden = R.hide;
       if (R.ui.liveName) R.ui.liveName.textContent = "жауап";
       const paint = throttleRaf((full) => {
@@ -366,21 +390,42 @@
       };
       const endCode = T.begin("код (бір сұрау)");
       const out = await Q.codegen.write({
-        idea, brief: brief(idea), plan: S.data.files.plan || "", info, sig,
+        idea, brief: brief(idea), plan: S.data.files.plan || "", info, sig, meta, split,
         onLive: (full) => paint(full), onPreview, onStage: (t) => setStep("code", "active", t),
+        onPart: (k, p) => { const F2 = S.data.files; F2.body = p.body; F2.css = p.css; F2.html = p.html; addFileRow("html"); if (p.css) { addFileRow("css"); } showMini(p.html); },
       });
       endCode();
       const F = S.data.files;
       F.body = out.body; F.css = out.css; F.js = out.js; F.html = out.html;
-      addFileRow("html");
+      addFileRow("html"); F.css && addFileRow("css"); F.js && addFileRow("js");
       showMini(out.html);
       setStep("code", "done", `${out.html.split("\n").length} жол · ${fmtSize(byteLen(out.html))}`);
 
       /* 4. Тексеру: батырмаларды нақты басып көру + AI тексеруі, ақауларды түзету */
       cur = "verify";
       const fin = await verify(out, T, sig);
-      F.body = fin.body; F.js = fin.js; F.html = fin.html; addFileRow("html");
+      F.body = fin.body; F.css = fin.css; F.js = fin.js; F.html = fin.html; addFileRow("html"); F.css && addFileRow("css"); F.js && addFileRow("js");
       showMini(fin.html);
+
+      /* 4б. Жақсарту: сапа тізімімен тексеру (1 айналым), патчтармен; бұзса — қайтарылады */
+      cur = "improve";
+      if (!fin.blank && !(Q.demo && Q.demo.active)) {
+        setStep("improve", "active", "Сапа тізімімен тексеріп жатыр…");
+        const endImp = T.begin("жақсарту");
+        try {
+          const im = await Q.codegen.improve({ title: idea.title, body: fin.body, css: fin.css || "", js: fin.js, meta, sig });
+          if (im) {
+            setStep("improve", "active", `${im.applied} жақсарту қолданылды, тексеріп жатыр…`);
+            const c2 = await Q.check.run(im.html);
+            if (c2.issues.length <= fin.left.length && !c2.issues.some(Q.codegen.isRenderIssue)) {
+              F.body = im.body; F.css = im.css; F.js = im.js; F.html = im.html; fin.html = im.html; fin.body = im.body; fin.css = im.css; fin.js = im.js;
+              addFileRow("html"); F.css && addFileRow("css"); F.js && addFileRow("js"); showMini(im.html);
+              setStep("improve", "done", `${im.applied} жақсарту`);
+            } else setStep("improve", "done", "Бұзатын өзгеріс болды, қайтарылды");
+          } else setStep("improve", "done", "Қосымша жақсарту қажет емес");
+        } catch (e) { if (e.code === "abort") throw e; setStep("improve", "done", "Өткізілді"); }
+        endImp();
+      } else setStep("improve", "done", "");
 
       S.data.report = fin.report; Q.report.render(fin.report);
       // экрандардың шағын суреттері: фонда алынады, дайын болғанда есепке қосылады
@@ -388,7 +433,7 @@
 
       /* 5. Дайын: тек тексеруден кейін */
       cur = "done";
-      S.data.versions = [{ html: fin.html, note: fin.fixes ? "Автотүзетілген нұсқа" : "Бастапқы нұсқа", t: Date.now() }]; S.data.verIdx = 0; S.data.explain = null;
+      S.data.versions = [{ html: fin.html, body: fin.body, css: fin.css || "", js: fin.js, note: fin.fixes ? "Автотүзетілген нұсқа" : "Бастапқы нұсқа", t: Date.now() }]; S.data.verIdx = 0; S.data.explain = null;
       S.save();
       setStep("done", "done", "");
       clearInterval(R.tick); R.ui.timer.textContent = fmtTime(performance.now() - R.t0);
@@ -397,7 +442,8 @@
       R.ui.liveCode.classList.remove("caret");
       Q.result.refresh(true);
       const dot = $("#dot-result"); if (Q.view !== "result") dot.hidden = false;
-      if (R.auto) Q.go("result"); else toast(fin.left.length ? "Дайын (кей жерлері жұмыс істемеуі мүмкін)" : "Дайын!", fin.left.length ? "err" : "ok", 3500);
+      if (fin.blank) toast("Бет бос шықты. «Қайта жасау» батырмасын басып көр.", "err", 8000);
+      else if (R.auto) Q.go("result"); else toast(fin.left.length ? "Дайын (кей жерлері жұмыс істемеуі мүмкін)" : "Дайын!", fin.left.length ? "err" : "ok", 3500);
     } catch (e) {
       if (e.code === "abort") toast("Тоқтатылды.", "ok", 2000);
       else toast(e.message || "Агент жұмысын аяқтай алмады. Қайта байқап көр.", "err", 8000);
@@ -410,11 +456,13 @@
       R.active = false; R.ctrl = null;
       saveAgent();
       if (R.ui.go) {
-        R.ui.go.hidden = false; R.ui.stop.hidden = true;
+        R.ui.go.hidden = false; R.ui.stop.hidden = true; R.ui.toRes.hidden = !S.data.files.html;
+        R.ui.go.classList.toggle("glass--flat", !!S.data.files.html);
         R.ui.go.innerHTML = `${ic("spark")}${S.data.files.html ? "Қайта жасау" : "Қайта байқау"}`;
         R.ui.timer.classList.remove("run");
         R.ui.peek.hidden = !S.data.files.html;
-        R.ui.peek.innerHTML = `${ic("eye", "ico ico--sm")}Нәтижені ашу`;
+        R.ui.peek.className = "btn btn--primary btn--lg lens glass";
+        R.ui.peek.innerHTML = `${ic("result", "ico ico--sm")}Нәтижеге өту`;
       }
     }
   }

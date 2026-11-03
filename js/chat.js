@@ -35,7 +35,7 @@
   function makeRow() {
     const old = $(".make-row"); if (old) old.remove();
     if (busy || !S.data.messages.some((m) => m.role === "assistant")) return;
-    const r = el("div", { class: "make-row" }, `<button class="btn btn--primary btn--lg glass lens" type="button" id="make">${ic("spark")}Осыдан қосымша жасау</button>`);
+    const r = el("div", { class: "make-row" }, `<button class="btn btn--primary btn--lg glass lens" type="button" id="make">${ic("spark")}Кодқа өту</button>`);
     msgsEl.appendChild(r);
     r.querySelector("#make").addEventListener("click", makeApp);
   }
@@ -112,7 +112,7 @@
       Q.go("code");
     } catch (e) {
       toast(e.message || "Идеяны қорытындылау мүмкін болмады.", "err");
-      btn.disabled = false; btn.innerHTML = `${ic("spark")}Осыдан қосымша жасау`;
+      btn.disabled = false; btn.innerHTML = `${ic("spark")}Кодқа өту`;
     }
   }
 

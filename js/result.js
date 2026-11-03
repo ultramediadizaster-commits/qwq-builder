@@ -101,7 +101,7 @@
   }
 
   /* ---------- түзету ---------- */
-  async function tweak(text) {
+  async function tweakLegacy(text) {
     text = text.trim();
     if (!text || busy || !html()) return;
     if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
@@ -169,6 +169,71 @@ ${code}
       busy = false; ctrl = null; if (ui.busy) ui.busy.hidden = true;
     }
   }
+  /* ---------- «Өзгерту» режимі: тек керекті жерге патч + дифф + бақылау нүктесі + «Қайтару» ---------- */
+  const esc = Q.esc;
+  const cut = (t, n) => { t = String(t || ""); return t.length > n ? t.slice(0, n) + "…" : t; };
+  function hideDiff() { const b = $("#diffbar"); if (b) b.hidden = true; }
+  function showDiff(changes, prevIdx, request) {
+    const b = $("#diffbar"); if (!b) return;
+    const files = {}; changes.forEach((c) => { files[c.file] = (files[c.file] || 0) + 1; });
+    const sum = Object.keys(files).map((f) => f + " · " + files[f]).join("  ");
+    b.innerHTML = `<div class="row" style="margin:0;gap:8px;align-items:center"><div style="flex:1;min-width:0"><b>Өзгеріс: ${changes.length}</b><div class="muted" style="font-size:12.5px">${esc(sum)}</div></div>
+      <button class="btn btn--sm glass glass--flat" id="diff-undo" type="button">${ic("undo", "ico ico--sm")}Қайтару</button>
+      <button class="btn btn--icon btn--sm glass glass--flat" id="diff-x" type="button" aria-label="Жабу">${ic("x", "ico ico--sm")}</button></div>
+      <details class="diff"><summary>Диффті көру</summary>${changes.map((c) => `<div class="d-f">${esc(c.file)}</div>${c.note ? `<div class="d-why">${esc(c.note)}</div>` : ""}${c.del ? `<div class="d-del">− ${esc(cut(c.del, 240))}</div>` : ""}<div class="d-add">+ ${esc(cut(c.add, 360))}</div>`).join("")}</details>`;
+    b.hidden = false;
+    $("#diff-undo").onclick = () => { select(prevIdx); hideDiff(); };
+    $("#diff-x").onclick = hideDiff;
+  }
+
+  /** Ағымдағы бөліктер: версияда сақталған болса, сол; әйтпесе файлдардан */
+  function curParts() {
+    const F = S.data.files, v = S.data.versions[verIdx()];
+    const p = v && v.body != null ? v : F;
+    return p && p.body != null && p.js != null ? { body: p.body, css: p.css || "", js: p.js } : null;
+  }
+
+  async function tweak(text) {
+    text = text.trim();
+    if (!text || busy || !html()) return;
+    const parts = curParts();
+    if (!parts) return tweakLegacy(text);            // ескі чаттар: бөлшектері жоқ — толық қайта жазу
+    if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
+    Q.mic.stop();
+    busy = true; ctrl = new AbortController(); hideDiff();
+    if (ui.busy) { ui.busy.hidden = false; $("#busy-t").textContent = "Тек керекті жерін өзгертіп жатыр…"; $("#busy-m").textContent = ""; }
+    const sig = ctrl.signal, meta = S.data.meta || {}, title = (S.data.idea && S.data.idea.title) || "Қосымша";
+    const prevIdx = verIdx();                         // бақылау нүктесі: қазіргі нұсқа версиялар тізімінде тұр
+    try {
+      let res = await Q.codegen.edit({ request: text, title, meta, sig, ...parts });
+      if (!res || res.error) throw new Q.api.QErr("Бұл өтінішті дәл өзгерте алмадым. Басқаша, нақтырақ жазып көр. Ескі нұсқа сақталды.", "nopatch");
+      $("#busy-t").textContent = "Тексеріп жатыр…";
+      let chk = await Q.check.run(res.html), tries = 0;
+      while (chk.issues.length && tries < 2) {
+        tries++;
+        $("#busy-t").textContent = `Түзетіп жатыр… (${tries}/2)`;
+        const fx = chk.issues.some(Q.codegen.isRenderIssue) ? null : await Q.codegen.fixJs({ title, body: res.body, css: res.css, js: res.js, errors: chk.issues, sig, meta });
+        if (!fx) break;
+        res = Object.assign(res, { body: fx.body, js: fx.js, html: fx.html });
+        chk = await Q.check.run(res.html);
+      }
+      if (chk.issues.length) throw new Q.api.QErr("Өзгеріс қосымшаны бұзды, сондықтан қолданылмады. Ескі нұсқа сақталды.", "broken");
+      S.data.versions.push({ html: res.html, body: res.body, css: res.css, js: res.js, note: text, t: Date.now() });
+      S.data.versions = S.data.versions.slice(-20);
+      S.data.verIdx = S.data.versions.length - 1;
+      Object.assign(S.data.files, { html: res.html, body: res.body, css: res.css, js: res.js });
+      S.save();
+      ui.frame.srcdoc = Q.check.preview(res.html); undoState();
+      showDiff(res.changes, Math.min(prevIdx, S.data.versions.length - 2), text);
+      toast("Дайын", "ok", 2000);
+      const f = $("#tweak"); if (f) f.value = "";
+    } catch (e) {
+      if (e.code === "abort") toast("Өзгерту тоқтатылды.", "ok", 3000);
+      else toast(e.message || "Өзгерту мүмкін болмады. Қайта байқап көр.", "err", 8000);
+    } finally {
+      busy = false; ctrl = null; if (ui.busy) ui.busy.hidden = true;
+    }
+  }
   /** Ағымдағы нұсқа индексі (тізім өшпейді: кез келген нұсқаға қайтуға болады) */
   function verIdx() { const n = S.data.versions.length, i = S.data.verIdx; return Number.isInteger(i) && i >= 0 && i < n ? i : n - 1; }
   function undoState() {
@@ -178,7 +243,7 @@ ${code}
   }
   function select(i) {
     const v = S.data.versions[i]; if (!v) return;
-    S.data.verIdx = i; S.data.files.html = v.html;
+    S.data.verIdx = i; S.data.files.html = v.html; if (v.body != null) Object.assign(S.data.files, { body: v.body, css: v.css || "", js: v.js });
     S.save(); if (ui.frame) ui.frame.srcdoc = Q.check.preview(html()); undoState();
     toast(`${i + 1}-нұсқаға оралды.`, "ok", 2500);
   }
@@ -223,5 +288,5 @@ ${code}
     render();
   }
 
-  Q.result = { init, refresh, fit, tweak, getHtml: html, verIdx, select };
+  Q.result = { init, refresh, fit, tweak, getHtml: html, verIdx, select, hideDiff };
 })(window.QWQ);
