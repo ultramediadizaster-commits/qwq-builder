@@ -55,7 +55,6 @@
       <article class="card glass">
         <h2>${esc(idea.title)}</h2>
         <p class="sum">${esc(idea.summary)}</p>
-        <div class="style-row"><span class="eyebrow">Стиль</span><div class="style-chips" id="style-chips" role="radiogroup" aria-label="Дизайн стилі">${Q.styles.CHIPS.map((c) => `<button type="button" class="schip${(idea.style || "auto") === c.id ? " on" : ""}" data-s="${c.id}" role="radio" aria-checked="${(idea.style || "auto") === c.id}">${c.name}</button>`).join("")}</div></div>
         <button class="toggle-prompt" type="button" id="tp" aria-expanded="false" aria-controls="pbox">Толық промпт ${ic("chev", "ico ico--sm")}</button>
         <textarea class="prompt-box" id="pbox" hidden aria-label="Толық промпт"></textarea>
         <div class="row">
@@ -88,11 +87,6 @@
     pb.oninput = () => { idea.prompt = pb.value; S.save(); };
     $("#tp").onclick = (e) => { const x = e.currentTarget; const o = x.getAttribute("aria-expanded") !== "true"; x.setAttribute("aria-expanded", o); pb.hidden = !o; };
     u.go.onclick = run;
-    $("#style-chips").onclick = (e) => {
-      const b = e.target.closest(".schip"); if (!b || R.active) return;
-      idea.style = b.dataset.s; S.save();
-      Q.$$(".schip").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", on); });
-    };
     u.toRes.onclick = () => Q.go("result");
     u.stop.onclick = () => R.ctrl && R.ctrl.abort();
     u.peek.onclick = peek;
@@ -209,12 +203,18 @@
   function summarize(chk, aiN) {
     const parts = [];
     if (chk.dead.length) parts.push(plural(chk.dead.length, "батырма жұмыс істемейді"));
-    const other = chk.issues.length - chk.dead.length - chk.stat.length;
+    const en = chk.issues.some((x) => /^Ағылшын мәтін/.test(x)) ? 1 : 0;
+    const other = chk.issues.length - chk.dead.length - chk.stat.length - en;
+    if (en) parts.push("ағылшын мәтін бар");
     if (chk.stat.length) parts.push(plural(chk.stat.length, "байланыс қатесі"));
     if (other > 0) parts.push(plural(other, "қате"));
     if (aiN) parts.push(plural(aiN, "ескерту (AI)"));
     return parts.join(" · ") || "ақау табылды";
   }
+
+  // Ағылшын мәтін тексерісі: тапсырма ағылшын тілін өзі сұраса (тіл үйрену, аударма), ағылшын сөздері ақау емес
+  const allowEn = (idea) => /ағылшын|english|инглиш|аударм|translat/i.test(`${idea.title} ${idea.summary} ${idea.prompt}`);
+  const checkRun = (html, idea) => Q.check.run(html).then((c) => { if (allowEn(idea)) c.issues = c.issues.filter((x) => !/^Ағылшын мәтін/.test(x)); return c; });
 
   async function verify(out, T, sig) {
     const idea = S.data.idea, F = S.data.files;
@@ -236,8 +236,8 @@
     // 1-айналым: нақты басып көру және AI тексеруі қатар жүреді
     const endChk = T.begin("тексеру (басу + AI)");
     const [chk0, ai] = await Promise.all([
-      Q.check.run(code),
-      (meta.type === "game" ? Promise.resolve([]) : Q.codegen.review({ plan: F.plan || "", body, js, sig })).catch((e) => { if (e.code === "abort") throw e; return []; }),
+      checkRun(code, idea),
+      Q.codegen.review({ plan: F.plan || "", body, js, sig }).catch((e) => { if (e.code === "abort") throw e; return []; }),
     ]);
     endChk();
     aiIssues = ai;
@@ -252,7 +252,7 @@
       setStep("verify", "active", text);
       showIssues(issues);
       // жылдам режим: бір түзету айналымы (тек бос бет/көрінбейтін экран болса — екі), ескі режимде — үш
-      if (fixes >= (Q.api.fast() ? (issues.some(Q.codegen.isRenderIssue) ? 2 : 1) : 3)) break;
+      if (fixes >= (Q.api.fast() ? (issues.some((x) => Q.codegen.isRenderIssue(x) || /^Ағылшын мәтін/.test(x)) ? 2 : 1) : 3)) break;
       fixes++;
       if (!Q.api.fast()) await Q.sleep(700);
       setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
@@ -268,7 +268,7 @@
       if (fx) { js = fx.js; body = fx.body; if (fx.css != null) css = fx.css; code = fx.html; }
       setStep("verify", "active", "Қайта тексеріп жатыр…");
       const endRe = T.begin(`қайта тексеру ${fixes}`);
-      chk = await Q.check.run(code);
+      chk = await checkRun(code, idea);
       endRe();
     }
     if (errBox) errBox.hidden = true;
@@ -307,16 +307,15 @@
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
     const sig = R.ctrl.signal, T = perf();
     let cur = "plan";
-    // жоба түрі мен дизайн бағыты: сұрауға қарай, соңғы қолданылғандарды қайталамай
-    const type = Q.styles.classify(idea.title + " " + idea.summary) !== "app" ? Q.styles.classify(idea.title + " " + idea.summary) : Q.styles.classify(idea.prompt);
-    const st = Q.styles.pick(type, idea.style);
-    const meta = S.data.meta = { type, style: st.id };
-    const split = type !== "game" && (Q.api.fast() ? idea.prompt.length > (type === "dashboard" ? 1800 : 2400) : (type === "dashboard" || idea.prompt.length > 1300));   // кезекпен жазу = 2 тізбекті сұрау, сондықтан жылдам режимде тек шынымен үлкен жобаға
+    // шаблон да, стиль кітапханасы да жоқ: тек ойын ба, әлде қосымша ма (ойынға арнайы талаптар қосылады)
+    const type = Q.codegen.isGame(idea) ? "game" : "app";
+    const meta = S.data.meta = { type };
+    const split = type !== "game" && (Q.api.fast() ? idea.prompt.length > 2400 : idea.prompt.length > 1300);   // кезекпен жазу = 2 тізбекті сұрау, сондықтан жылдам режимде тек шынымен үлкен жобаға
     S.save();
     try {
       /* 1+2. Жоспар және интернеттен іздеу ПАРАЛЛЕЛЬ */
       setStep("plan", "active", ""); setStep("search", "active", "");
-      console.log(`[QWQ] түрі: ${type}, стиль: ${st.id}${split ? ", кезекпен жазу" : ""}`);
+      console.log(`[QWQ] түрі: ${type}${split ? ", кезекпен жазу" : ""}`);
       const planP = (async () => {
         const end = T.begin("жоспар");
         const tick = throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`));
@@ -394,7 +393,7 @@
 
       /* 3. Кодты БІР сұраумен жазу (дайын үлгіге мазмұн + логика) */
       cur = "code";
-      setStep("code", "active", `${Q.styles.typeName(type)} · ${st.name}`);
+      setStep("code", "active", type === "game" ? "Ойын нөлден жазылып жатыр" : "Қосымша нөлден жазылып жатыр");
       R.ui.live.dataset.on = "1"; R.ui.live.hidden = R.hide;
       if (R.ui.liveName) R.ui.liveName.textContent = "жауап";
       const paint = throttleRaf((full) => {
@@ -446,7 +445,7 @@
           const im = impP ? (fin.fixes ? null : await impP) : await Q.codegen.improve({ title: idea.title, body: fin.body, css: fin.css || "", js: fin.js, meta, sig });
           if (im) {
             setStep("improve", "active", `${im.applied} жақсарту қолданылды, тексеріп жатыр…`);
-            const c2 = await Q.check.run(im.html);
+            const c2 = await checkRun(im.html, idea);
             if (c2.issues.length <= fin.left.length && !c2.issues.some(Q.codegen.isRenderIssue)) {
               F.body = im.body; F.css = im.css; F.js = im.js; F.html = im.html; fin.html = im.html; fin.body = im.body; fin.css = im.css; fin.js = im.js;
               addFileRow("html"); F.css && addFileRow("css"); F.js && addFileRow("js"); showMini(im.html);

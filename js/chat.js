@@ -1,6 +1,6 @@
 /* QWQ Builder · чат көрінісі */
 (function (Q) {
-  const { $, el, ic, md, toast, throttleRaf } = Q;
+  const { $, el, ic, md, esc, toast, throttleRaf } = Q;
   const S = Q.store;
   let busy = false, ctrl = null;
   const msgsEl = $("#msgs"), input = $("#input"), sendBtn = $("#send");
@@ -109,14 +109,51 @@
     btn.disabled = true; btn.innerHTML = `${ic("spark")}Күте тұр…`;
     try {
       const idea = await Q.api.extractIdea(S.data.messages.slice(-10).map((m) => ({ role: m.role, content: m.content })));
-      S.data.idea = idea; S.data.files = {}; S.data.versions = [];
-      S.save();
-      Q.code.render();
-      Q.go("code");
+      const qs = idea.questions || []; delete idea.questions;
+      if (qs.length && !(Q.demo && Q.demo.active)) { btn.closest(".make-row").remove(); askQuestions(idea, qs); return; }
+      startIdea(idea, false);
     } catch (e) {
       toast(e.message || "Идеяны қорытындылау мүмкін болмады.", "err");
       btn.disabled = false; btn.innerHTML = `${ic("spark")}Кодқа өту`;
     }
+  }
+
+  function startIdea(idea, auto) {
+    S.data.idea = idea; S.data.files = {}; S.data.versions = [];
+    S.save();
+    Q.code.render();
+    Q.go("code");
+    if (auto) Q.code.run();
+  }
+
+  /** Код жазбас бұрын: 2–4 нақтылау сұрағы, басылатын нұсқалармен; әр сұрақта «Өзің шеш» (әдепкі) */
+  function askQuestions(idea, qs) {
+    const AUTO = "Өзің шеш";
+    const card = el("div", { class: "msg msg--ai glass glass--flat qcard" });
+    card.innerHTML = `<p class="q-h">Код жазбас бұрын бірнеше нақтылау. Нұсқаны бас (немесе «${AUTO}» қалдыр):</p>` +
+      qs.map((x, i) => `<div class="q-row" role="radiogroup" aria-label="${esc(x.q)}"><div class="q-t">${esc(x.q)}</div><div class="q-opts">${
+        x.options.concat(AUTO).map((v) => `<button type="button" class="qchip${v === AUTO ? " on" : ""}" data-i="${i}" role="radio" aria-checked="${v === AUTO}">${esc(v)}</button>`).join("")}</div></div>`).join("") +
+      `<div class="q-go"><button class="btn btn--primary btn--lg glass lens" type="button">${ic("spark")}Код жазуды бастау</button></div>`;
+    msgsEl.appendChild(card);
+    scrollEnd(true);
+    const pick = qs.map(() => AUTO);
+    card.addEventListener("click", (e) => {
+      const c = e.target.closest(".qchip");
+      if (c) {
+        const i = +c.dataset.i; pick[i] = c.textContent;
+        card.querySelectorAll(`.qchip[data-i="${i}"]`).forEach((b) => { const on = b === c; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+        return;
+      }
+      if (!e.target.closest(".q-go .btn")) return;
+      // жауаптар тапсырманың соңына қосылады; «Өзің шеш» — агент өзі таңдайды
+      const lines = qs.map((x, i) => `- ${x.q}: ${pick[i] === AUTO ? "агент өзі шешеді (тақырыпқа ең сай нұсқа)" : pick[i]}`);
+      idea.prompt += `\n\nҚОЛДАНУШЫНЫҢ НАҚТЫЛАУЛАРЫ (міндетті түрде ұстан):\n${lines.join("\n")}`;
+      const sum = qs.map((x, i) => `**${x.q}:** ${pick[i]}`).join("\n\n");
+      card.remove();
+      S.data.messages.push({ role: "assistant", content: `Нақтылаулар:\n\n${sum}` });
+      renderAll();
+      startIdea(idea, true);
+    });
   }
 
   function init() {

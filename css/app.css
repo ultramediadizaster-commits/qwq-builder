@@ -163,7 +163,7 @@
 .seg-ind{position:absolute;top:4px;bottom:4px;left:4px;border-radius:999px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.1));box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 3px 10px rgba(0,0,0,.4);transition:transform .55s var(--spring),width .55s var(--spring)}
 .tools{display:flex;gap:8px;flex:1;justify-content:flex-end}
 .tools .btn{--h:42px}
-.stage{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center;position:relative}
+.stage{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center;position:relative;overflow:hidden}
 .frame-box{transform-origin:top center;position:relative;flex:none}
 .frame-box.phone{border-radius:54px;padding:11px;background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.05));box-shadow:inset 0 1px 2px rgba(255,255,255,.5),inset 0 -1px 2px rgba(0,0,0,.6),0 24px 60px rgba(0,0,0,.65)}
 .frame-box.phone iframe{border-radius:44px}
@@ -237,7 +237,7 @@
   .msg--ai{max-width:100%}
 }
 @media (min-width:1000px){
-  #view-result .col{width:min(100% - 64px,1200px)}
+  #view-result .col{width:calc(100% - 32px)}
   .col.wide{width:min(100% - 64px,900px)}
 }
 @media (max-width:430px){
@@ -344,12 +344,6 @@
 @media (min-width:761px){.more-menu .m-only{display:none}}
 
 /* стиль чиптері (промпт картасы) */
-.style-row{margin-top:14px}
-.style-chips{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 4px;scrollbar-width:none;margin:0 -2px}
-.style-chips::-webkit-scrollbar{display:none}
-.schip{flex:none;min-height:36px;padding:0 15px;border-radius:999px;font:600 13.5px/1 inherit;color:var(--text-2);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;transition:background .25s,color .25s,transform .35s cubic-bezier(.22,1,.36,1),box-shadow .25s}
-.schip:active{transform:scale(.95)}
-.schip.on{color:#fff;background:linear-gradient(135deg,rgba(90,169,255,.55),rgba(164,123,255,.5));border-color:rgba(255,255,255,.3);box-shadow:0 4px 18px rgba(90,169,255,.3)}
 .diff{margin:10px 0 0;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace}
 .diff .d-f{color:var(--text-2);margin-top:8px;font-weight:700}
 .diff .d-del{background:rgba(251,113,133,.14);color:#fda4af;white-space:pre-wrap;word-break:break-all;border-radius:6px;padding:2px 6px;margin:2px 0}
@@ -357,3 +351,15 @@
 .diff .d-why{color:var(--text-2);font-family:inherit;margin:2px 0 4px}
 .diffbar{width:min(100%,760px);max-height:44vh;overflow:auto;padding:12px 14px;border-radius:22px;margin-bottom:8px;pointer-events:auto}
 .diffbar[hidden]{display:none}
+
+/* ---------- Нақтылау сұрақтары (код жазбас бұрын) ---------- */
+.qcard{max-width:100%}
+.q-h{margin:0 0 12px;color:var(--text-2);font-size:14.5px}
+.q-row{margin:0 0 14px}
+.q-t{font-weight:650;font-size:15px;margin:0 0 8px}
+.q-opts{display:flex;flex-wrap:wrap;gap:8px}
+.qchip{min-height:40px;padding:0 15px;border-radius:999px;font:600 14px/1 inherit;color:var(--text-2);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);cursor:pointer;transition:background .25s,color .25s,transform .35s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.qchip:active{transform:scale(.95)}
+.qchip.on{color:#fff;background:linear-gradient(135deg,rgba(90,169,255,.55),rgba(164,123,255,.5));border-color:rgba(255,255,255,.3);box-shadow:0 4px 18px rgba(90,169,255,.3)}
+.qchip:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.q-go{display:flex;justify-content:center;margin-top:6px}

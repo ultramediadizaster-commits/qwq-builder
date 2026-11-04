@@ -3,7 +3,7 @@
   const { $, el, ic, toast, fmtSize, byteLen, throttleRaf } = Q;
   const S = Q.store;
   const SANDBOX = "allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock";
-  let mode = "phone", ui = {}, ro = null, busy = false, ctrl = null;
+  let mode = innerWidth >= 760 ? "desktop" : "phone", ui = {}, ro = null, busy = false, ctrl = null;
 
   const html = () => S.data.files.html || "";
 
@@ -95,8 +95,8 @@
         Object.assign(fb.style, { width: W + "px", height: H + "px", transform: `scale(${s})` });
       }
     } else {
-      const W = 1280, s = Math.min(w / W, 1);
-      Object.assign(fb.style, { width: W + "px", height: h / s + "px", transform: `scale(${s})` });
+      // компьютер: кадр бүкіл аймақты алады (кішірейтусіз, бос жолақсыз)
+      Object.assign(fb.style, { width: w + "px", height: h + "px", transform: "none" });
     }
   }
 

@@ -180,14 +180,19 @@
   /** Сөйлесуден {title, summary, prompt} JSON алу */
   async function extractIdea(history, signal) {
     const ask = `Жоғарыдағы әңгіме негізінде қолданушының қосымша идеясын қорытындыла. Жауапты ТЕК таза JSON пішімінде қайтар (markdown, түсініктеме қоспа):
-{"title":"қысқа атау (3–5 сөз)","summary":"бір сөйлемдік сипаттама","prompt":"веб-әзірлеушіге арналған толық тапсырма: мақсаты, экрандар, негізгі функциялар, деректер, дизайн қалауы. Қазақша, 150–350 сөз"}`;
+{"title":"қысқа атау (3–5 сөз)","summary":"бір сөйлемдік сипаттама","prompt":"веб-әзірлеушіге арналған толық тапсырма: мақсаты, экрандар, негізгі функциялар, деректер, дизайн қалауы. Қазақша, 150–350 сөз","questions":[{"q":"қысқа сұрақ","options":["нұсқа","нұсқа","нұсқа"]}]}
+questions — код жазбас бұрын қолданушыға қойылатын 2–4 нақтылау сұрағы, әрқайсысында 2–4 қысқа нұсқа (1–3 сөз), бәрі қазақша. Бірі — дизайн стилі (мысалы: Қараңғы / Жарық / Түрлі-түсті); қалғаны идеяға қарай: кімге арналған (мысалы: Бастауыш / Орта сынып / Мұғалім), қиындық, басқару, негізгі мүмкіндіктер. Әңгімеде нақты айтылған нәрсе туралы сұрама. Тапсырма өте нақты болса (стиль, кімге арналғаны, негізгі мүмкіндіктер айтылған) — "questions":[] қайтар.`;
     for (let i = 0; i < 3; i++) {
       // Gemini жолы (agent + модель): Gemma-дан әлдеқайда жылдам; тек соңғы 10 хабарлама жіберіледі
       const r = await chat({ message: ask + (i ? "\nЕскерту: тек жарамды JSON объектісі керек." : ""), history: history.slice(-10), web: false, stream: false, signal, agent: true, model: "gemini-3.1-flash-lite" });
       const j = parseJSON(r.answer);
       if (j && j.title && j.prompt) {
         const p = Array.isArray(j.prompt) ? j.prompt.join("\n") : typeof j.prompt === "object" ? JSON.stringify(j.prompt, null, 2) : String(j.prompt);
-        return { title: String(j.title).slice(0, 80), summary: String(j.summary || "").slice(0, 240), prompt: p };
+        // нақтылау сұрақтары: ең көбі 4, әрқайсысында 2–4 нұсқа («Өзің шеш» клиентте қосылады)
+        const questions = (Array.isArray(j.questions) ? j.questions : [])
+          .map((x) => ({ q: String((x && x.q) || "").trim().slice(0, 80), options: (Array.isArray(x && x.options) ? x.options : []).map((v) => String(v).trim().slice(0, 40)).filter((v) => v && !/^өзің шеш/i.test(v)).slice(0, 4) }))
+          .filter((x) => x.q && x.options.length >= 2).slice(0, 4);
+        return { title: String(j.title).slice(0, 80), summary: String(j.summary || "").slice(0, 240), prompt: p, questions };
       }
     }
     throw new QErr("QWQ идеяны дұрыс пішімде қайтара алмады. Қайта бас.", "json");

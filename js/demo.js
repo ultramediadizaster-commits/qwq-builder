@@ -3,8 +3,22 @@
   const { $, sleep, toast } = Q;
   const S = Q.store;
 
-  // дайын үлгіге (template.js) толтырылатын демо қосымша: сөз жаттықтырғыш
-  const BODY = `<header class="top"><h1>Сөз <span class="grad">жаттықтырғыш</span></h1><p class="muted">Қазақша сөздерді карточкамен үйрен</p></header>
+  // демо қосымша: сөз жаттықтырғыш (шаблонсыз — өз CSS-і мен көмекшілері бар, нақты агент жазатындай)
+  const CSS = `:root{--bg:#07080d;--surface:rgba(255,255,255,.06);--line:rgba(255,255,255,.12);--text:#f4f6fb;--muted:#9aa4b8;--accent:#5aa9ff;--accent2:#a47bff;--ok:#34d399}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:radial-gradient(60% 36% at 12% 0%,color-mix(in srgb,var(--accent) 24%,transparent),transparent),var(--bg);background-attachment:fixed;min-height:100vh;padding-bottom:96px}
+.app{max-width:560px;margin:0 auto;padding:20px 16px}h1,h2{margin:0 0 8px;line-height:1.2}h1{font-size:28px}
+.muted{color:var(--muted);font-size:14px}.grad{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.top{margin:6px 0 18px}.top p{margin:0}.screen{display:none}.screen.on{display:block}
+.card,.stat,.item{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}.card.glow{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat b{display:block;font-size:24px}.stat span{color:var(--muted);font-size:13px}
+.row{display:flex;gap:10px}.grow{flex:1}.list{display:flex;flex-direction:column}.item{display:flex;align-items:center;gap:12px}.item span{color:var(--muted);font-size:13px}
+.btn{min-height:52px;padding:0 20px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.1);color:var(--text);font:600 16px/1 inherit;cursor:pointer}.btn.primary{border:0;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}.btn.ghost{background:transparent}.btn.block{width:100%}
+.progress{height:10px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}.progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .5s}
+.badge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}.badge.ok{color:var(--ok)}.empty{text-align:center;color:var(--muted);padding:30px 16px}
+.tabbar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(calc(100% - 24px),520px);display:flex;gap:4px;padding:6px;border-radius:999px;background:rgba(18,20,30,.8);border:1px solid var(--line)}
+.tab{flex:1;min-height:48px;border:0;border-radius:999px;background:none;color:var(--muted);font:600 14px/1 inherit;cursor:pointer}.tab.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);padding:12px 18px;border-radius:999px;background:#12141e;border:1px solid var(--line);font-size:14px}`;
+  const BODY = `<div class="app"><header class="top"><h1>Сөз <span class="grad">жаттықтырғыш</span></h1><p class="muted">Қазақша сөздерді карточкамен үйрен</p></header>
 <section class="screen on" id="learn">
   <div class="grid2"><div class="stat"><b id="k">0</b><span>Білемін</span></div><div class="stat"><b id="r">0</b><span>Қайталау</span></div></div>
   <div class="card glow" style="margin-top:14px"><div class="progress"><i id="p"></i></div></div>
@@ -13,8 +27,14 @@
   <button class="btn ghost block" id="share" style="margin-top:12px">Бөлісу</button>
 </section>
 <section class="screen" id="stats"><div class="card"><h2>Нәтиже</h2><div class="list" id="hist"></div><p class="empty" id="empty">Әзірге деректер жоқ</p></div></section>
-<nav class="tabbar"><button class="tab on" data-go="learn">Жаттау</button><button class="tab" data-go="stats">Нәтиже</button></nav>`;
-  const JS = `var W=[["Алма","Apple"],["Кітап","Book"],["Су","Water"],["Үй","House"],["Дос","Friend"],["Күн","Sun"],["Қала","City"],["Ана","Mother"],["Өнер","Art"],["Жол","Road"]];
+<nav class="tabbar"><button class="tab on" data-go="learn">Жаттау</button><button class="tab" data-go="stats">Нәтиже</button></nav></div>`;
+  const JS = `var $=function(s){return document.querySelector(s)},$$=function(s){return [].slice.call(document.querySelectorAll(s))};
+var store={get:function(k,d){try{var v=localStorage.getItem("app_"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:function(k,v){try{localStorage.setItem("app_"+k,JSON.stringify(v))}catch(e){}}};
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+var fmt={date:function(d){return new Date(d).toLocaleDateString("kk-KZ",{day:"numeric",month:"short"})}};
+function toast(m){var t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove()},2400)}
+$$("[data-go]").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.go;$$(".screen").forEach(function(s){s.classList.toggle("on",s.id===id)});$$("[data-go]").forEach(function(x){x.classList.toggle("on",x===b)})})});
+var W=[["Алма","Apple"],["Кітап","Book"],["Су","Water"],["Үй","House"],["Дос","Friend"],["Күн","Sun"],["Қала","City"],["Ана","Mother"],["Өнер","Art"],["Жол","Road"]];
 var q=W.slice().sort(function(){return Math.random()-.5}),known=0,again=0,flipped=false,hist=store.get("hist",[]);
 function show(){
   flipped=false;
@@ -118,11 +138,11 @@ window.QWQ_RECORDING = ${d};
       else if (kind === "review") ans = '{"ok":true,"problems":[]}';
       else if (kind === "patch") ans = JSON.stringify([{ find: "renderStats();", replace: "" }, { append: "$('#share').addEventListener('click', function(){ toast('Сілтеме көшірілді'); });" }]); // JS қатесі + өлі батырма патчы
       else if (kind === "fixjs") ans = ["```js", JS, "```"].join("\n");                       // JS-ті толық қайта жазу
-      else if (kind === "code") ans = ["===HTML===", BODY, "===CSS===", "", "===JS===", JS, "renderStats();", "===END==="].join("\n"); // әдейі 1 қатесі бар нұсқа
+      else if (kind === "code") ans = ["===HTML===", BODY, "===CSS===", CSS, "===JS===", JS, "renderStats();", "===END==="].join("\n"); // әдейі 1 қатесі бар нұсқа
       else if (kind === "tweak") {
         const ask = (m.match(/«([^»]+)»/) || [])[1] || "";
         const col = (COLORS.find((c) => ask.toLowerCase().includes(c[0])) || [0, "#ff375f"])[1];
-        const cur = (m.match(/```html\n([\s\S]*?)\n```\s*$/) || [])[1] || Q.template.build('Сөз жаттықтырғыш', BODY, '', JS);
+        const cur = (m.match(/```html\n([\s\S]*?)\n```\s*$/) || [])[1] || Q.template.build('Сөз жаттықтырғыш', BODY, CSS, JS);
         ans = "```html\n" + cur.replace(/--accent:#[0-9a-fA-F]{3,8}/, "--accent:" + col) + "\n```";
       } else ans = CHAT[Math.min(n++, CHAT.length - 1)];
       return D.stream(Object.assign({}, o, kind === "idea" ? { stream: false } : {}), ans, srcs);
@@ -174,5 +194,6 @@ window.QWQ_RECORDING = ${d};
       } finally { playing = false; }
     },
   };
+  D.css = CSS;       // турдағы демо бет те осы дизайнмен салынады
   Q.demo = D;
 })(window.QWQ);

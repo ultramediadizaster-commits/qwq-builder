@@ -16,14 +16,14 @@
 
   /* ---------- демо деректер (сабақ кестесі) ---------- */
   function demoChat() {
-    const BODY = `<header class="top"><h1>Сабақ <span class="grad">кестесі</span></h1><p class="muted">7«А» сынып · бүгін сейсенбі</p></header>
+    const BODY = `<div class="app"><header class="top"><h1>Сабақ <span class="grad">кестесі</span></h1><p class="muted">7«А» сынып · бүгін сейсенбі</p></header>
 <section class="screen on" id="today"><div class="chips"><button class="chip">Дс</button><button class="chip on">Сс</button><button class="chip">Ср</button><button class="chip">Бс</button><button class="chip">Жм</button></div>
 <div class="list"><div class="item"><div class="grow"><b>Математика</b><span>08:30 · 204 каб.</span></div><span class="badge ok">қазір</span></div>
 <div class="item"><div class="grow"><b>Қазақ тілі</b><span>09:25 · 112 каб.</span></div></div><div class="item"><div class="grow"><b>Информатика</b><span>10:20 · 301 каб.</span></div></div>
 <div class="item"><div class="grow"><b>Дене шынықтыру</b><span>11:15 · спортзал</span></div></div></div><button class="btn primary block" style="margin-top:12px">Еске салу</button></section>
 <section class="screen" id="week"><div class="card"><h2>Апта</h2><p class="muted">30 сабақ · 5 күн</p></div></section>
-<nav class="tabbar"><button class="tab on" data-go="today">Бүгін</button><button class="tab" data-go="week">Апта</button></nav>`;
-    const html = Q.template.build("Сабақ кестесі", BODY, "", "");
+<nav class="tabbar"><button class="tab on" data-go="today">Бүгін</button><button class="tab" data-go="week">Апта</button></nav></div>`;
+    const html = Q.template.build("Сабақ кестесі", BODY, Q.demo.css + "\n.chips{display:flex;gap:8px;margin-bottom:12px}.chip{min-height:38px;padding:0 15px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 13px/1 inherit}.chip.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}", "");
     const t = Date.now();
     return {
       id: "tour-demo", title: "Сабақ кестесі", auto: false, created: t, updated: t, demo: true,

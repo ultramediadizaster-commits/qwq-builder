@@ -9,10 +9,15 @@ var I=__ID__,W=window,post=function(t,m){try{parent.postMessage({qwq:I,t:t,m:m},
 var errs=[],ctx=null,dlg=0,mut=0,lsw=0,scr=0;
 try{var _si=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(){scr++;try{return _si.apply(this,arguments)}catch(e){}};["scrollTo","scrollBy","scroll"].forEach(function(k){var f=window[k];window[k]=function(){scr++;try{return f.apply(window,arguments)}catch(e){}}})}catch(e){}
 function err(m){errs.push({m:String(m).slice(0,260),ctx:ctx})}
+/* ағылшын мәтін: көрінетін мәтін, placeholder/aria-label/title/value және alert хабарларындағы латын сөздері (қысқартулар мен өлшем бірліктері есептелмейді) */
+var eng={},engN=0,OKW=/^(QWQ|HTML|CSS|JS|API|URL|ID|QR|PDF|SVG|PNG|JPG|GPS|USB|WiFi|Wi|Fi|IT|AI|km|kg|cm|mm|ml|px|ms|Hz|KZT|USD|EUR|RUB|[IVXLC]+|[xyzab])$/;
+function engStr(t){if(!t||engN>40)return;String(t).replace(/(?:https?:\/\/|www\.)\S+|\S+@\S+/g," ").replace(/[A-Za-z][A-Za-z'’]*(?:[ -][A-Za-z][A-Za-z'’]*)*/g,function(p){var ws=p.split(/[ -]/).filter(function(w){return w.length>1&&!OKW.test(w)});if(ws.length&&!eng[p]){eng[p]=1;engN++}return p})}
+function engScan(){try{var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),t;while(t=w.nextNode()){var p=t.parentElement;if(!p||/^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE|KBD|TEXTAREA)$/.test(p.tagName)||!vis(p))continue;engStr(t.nodeValue)}
+[].forEach.call(document.querySelectorAll("[placeholder],[aria-label],[title],input[type=button],input[type=submit]"),function(el){if(!vis(el))return;engStr(el.getAttribute("placeholder"));engStr(el.getAttribute("aria-label"));engStr(el.getAttribute("title"));if(el.tagName==="INPUT")engStr(el.value)});engStr(document.title)}catch(e){}}
 W.addEventListener("error",function(e){err((e.message||"Қате")+(e.lineno?" (жол "+e.lineno+")":""))});
 W.addEventListener("unhandledrejection",function(e){var r=e.reason;err("Promise: "+(r&&r.message||r))});
 var ce=console.error;console.error=function(){err("console.error: "+[].slice.call(arguments).join(" "));try{ce.apply(console,arguments)}catch(x){}};
-W.alert=function(){dlg++};W.confirm=function(){dlg++;return true};W.prompt=function(){dlg++;return "Тест"};W.open=function(){dlg++;return null};
+W.alert=function(m){dlg++;engStr(m)};W.confirm=function(m){dlg++;engStr(m);return true};W.prompt=function(m){dlg++;engStr(m);return "Тест"};W.open=function(){dlg++;return null};
 /* өңдегіштерді бақылау */
 var L=new WeakMap(),add=EventTarget.prototype.addEventListener;
 EventTarget.prototype.addEventListener=function(t,f,o){
@@ -109,6 +114,7 @@ async function main(){
   var info={text:document.body?(document.body.innerText||"").trim().length:0,kids:document.body?document.body.children.length:0,act:document.querySelectorAll(SEL).length};
   var rn0=null,gm=null;
   try{rn0=renderInfo()}catch(e){err("render: "+e.message)}
+  engScan();
   try{gm=await gameTest()}catch(e){err("ойын сынағы: "+e.message)}
   for(var n=0;n<70&&Date.now()-t0<__BUDGET__;n++){
     var el=nextEl();if(!el)break;
@@ -120,13 +126,15 @@ async function main(){
     var m0=mut,l0=lsw,d0=dlg,e0=errs.length,h0=location.hash,s0=scr,a0=document.activeElement;
     try{el.click()}catch(e){err("click: "+e.message)}
     await sleep(__WAIT__);
+    engScan();
     var eff=mut>m0||lsw>l0||dlg>d0||location.hash!==h0||scr>s0||document.activeElement!==a0;
     var bad=errs.length>e0;
     if(!eff&&!bad)dead.push({label:label(el),sel:sel(el),handler:hh});
     btns.push({l:label(el),ok:eff&&!bad,n:bad?"қате":!eff?"әрекет жоқ":""});
     ctx=null;clicked++}
   var rn1=null;try{rn1=renderInfo()}catch(e){}
-  post("r",JSON.stringify({errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info,btns:btns,rn0:rn0,rn1:rn1,game:gm}))}
+  engScan();
+  post("r",JSON.stringify({eng:Object.keys(eng).slice(0,14),errs:errs,dead:dead,stat:stat,clicked:clicked,nohandler:nohandler,info:info,btns:btns,rn0:rn0,rn1:rn1,game:gm}))}
 function start(){main().catch(function(e){err("тексеру: "+e.message);post("r",JSON.stringify({errs:errs,dead:[],stat:[],clicked:0,nohandler:0,info:null}))})}
 if(document.readyState==="complete")setTimeout(start,350);else W.addEventListener("load",function(){setTimeout(start,350)});
 })()`;
@@ -184,11 +192,13 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
             else if (!g.changed) issues.unshift("Ойын кадрлары өзгермейді: қозғалыс/анимация жоқ немесе басқару жұмыс істемейді");
           }
         }
+        const eng = (res && res.eng) || [];
+        if (eng.length) issues.push(`Ағылшын мәтін: ${eng.slice(0, 12).map((w) => "«" + w + "»").join(", ")} — пайдаланушы көретін бұл мәтіндерді (батырма, тақырып, нұсқау, хабар, placeholder) қазақшаға аудар`);
         if (!/<\/html>\s*$/i.test(html.trim())) issues.push("Код </html> тегімен аяқталмаған");
         if (!res) issues.push("Бет жүктелмеді немесе тексеру уақыты біттi");
         else if (res.info && !res.info.text && !res.info.kids) issues.push("Бет бос");
         else if (res.info && !res.info.act) issues.push("Басатын батырма немесе өріс жоқ");
-        resolve({ rn: res && res.rn1, game: res && res.game, errors, dead, stat, issues, clicked: res ? res.clicked : 0, act: res && res.info ? res.info.act : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
+        resolve({ eng, rn: res && res.rn1, game: res && res.game, errors, dead, stat, issues, clicked: res ? res.clicked : 0, act: res && res.info ? res.info.act : 0, nohandler: res ? res.nohandler : 0, btns: (res && res.btns) || [] });
       };
       const on = (e) => {
         if (e.source !== f.contentWindow || !e.data || e.data.qwq !== id || e.data.t !== "r") return;
