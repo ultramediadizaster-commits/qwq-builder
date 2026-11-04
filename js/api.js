@@ -230,13 +230,15 @@ ${qclip(first, 1500)}
 
 ЖИНАЛҒАН ШЕШІМДЕР (дайын, қайта іздеме):
 ${decisions.map((x) => "- " + x).join("\n") || "- (әзірге жоқ)"}`;
-    const ac = new AbortController(); let timedOut = false, long = false;
+    const ac = new AbortController();
     const link = () => ac.abort(); if (o.signal) o.signal.addEventListener("abort", link, { once: true });
-    const timer = setTimeout(() => { timedOut = true; ac.abort(); }, o.timeoutMs || QI_MS);
+    let timer;
+    // шек сұраудың өзіне тәуелсіз: 15 с өтсе, сұрау тоқтатылып, карта бірден жергілікті құрастырылады
+    const limit = new Promise((_, rej) => { timer = setTimeout(() => { ac.abort(); rej(new QErr("Уақыт шегі", "timeout")); }, o.timeoutMs || QI_MS); });
     try {
-      const r = await chat({ message: ask, history: recent.slice(-6), web: false, stream: true, signal: ac.signal, agent: true, tries: 2,
+      const r = await Promise.race([limit, chat({ message: ask, history: recent.slice(-6), web: false, stream: true, signal: ac.signal, agent: true, tries: 2,
         models: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"], model: "gemini-3.5-flash-lite", thinkingLevel: "minimal", firstMs: 8000,
-        onDelta: (_, full) => { if (full.length > QI_MAX) { long = true; ac.abort(); return; } o.onDraft && o.onDraft(draftOf(full)); } });
+        onDelta: (_, full) => { if (full.length > QI_MAX) { ac.abort(); return; } o.onDraft && o.onDraft(draftOf(full)); } })]);
       const j = parseJSON(r.answer);
       if (!j || !j.title || !j.prompt) return localIdea(first, decisions, recent);
       const p = Array.isArray(j.prompt) ? j.prompt.join("\n") : typeof j.prompt === "object" ? JSON.stringify(j.prompt, null, 2) : String(j.prompt);

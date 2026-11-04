@@ -5,6 +5,9 @@
 const out = document.getElementById("out"); let pass = 0, fail = 0;
 const log = (ok, name, extra) => { ok ? pass++ : fail++; out.textContent += (ok ? "✓ " : "✗ ") + name + (extra ? "  → " + extra : "") + "\n"; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// тест кілтті уақытша «test-key»/«mock»-қа ауыстырады: қолданушының нақты кілті соңында (қате болса да) қайтарылады
+const KEY0 = localStorage.getItem("qwq.key");
+const restoreKey = () => { if (KEY0 == null) localStorage.removeItem("qwq.key"); else localStorage.setItem("qwq.key", KEY0); };
 (async () => {
   localStorage.setItem("qwq.demo", "0"); localStorage.setItem("qwq.tour.done", "1");
   const f = document.createElement("iframe"); f.src = "../index.html"; f.style.cssText = "width:390px;height:700px;border:0"; document.body.appendChild(f);
@@ -122,14 +125,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < 40 && Q.chat.isBusy(); i++) await sleep(50);
   const b2 = sent[0] || {};
   log(/Мен 2-нұсқаны таңдадым: «Ғарыш математикасы»/.test(b2.message || "") && (b2.history || []).some((m) => /Дүкен ойыны/.test(m.content)) && (b2.history || []).some((m) => /3-сынып/.test(m.content)), "чип таңдауы бүкіл тарихпен «Мен 2-нұсқаны таңдадым» түрінде кетеді");
-  // Кодқа өту: таңдау мен шешімдер промпт картасына жиналады, тарих толық барады
+  // Кодқа өту (жылдам): бірінші хабар + жергілікті шешімдер + соңғы 6 хабар; flash-lite, minimal, ағынмен; карта жазылып жатқаны көрінеді
   sent = [];
-  nextAns = JSON.stringify({ title: "Ғарыш математикасы", summary: "3-сыныпқа арналған ойын", prompt: "Ғарыш математикасы ойыны.", decisions: ["Аудитория: 3-сынып", "Ойын түрі: Ғарыш математикасы"], questions: [] });
+  nextAns = JSON.stringify({ title: "Ғарыш математикасы", summary: "3-сыныпқа арналған ойын", prompt: "Ғарыш математикасы ойыны.", questions: [] });
+  let sawLive = false; const obs = new W.MutationObserver(() => { if (W.document.querySelector(".idea-live")) sawLive = true; }); obs.observe(W.document.querySelector("#msgs"), { childList: true });
   W.document.querySelector("#make").click();
   for (let i = 0; i < 60 && Q.view !== "code"; i++) await sleep(50);
-  const idea = Q.store.data.idea || {};
-  const exH = (sent[0] && sent[0].history) || [];
-  log(/Таңдалған нұсқа: Ғарыш математикасы/.test(idea.prompt || "") && /Аудитория: 3-сынып/.test(idea.prompt || "") && !!W.document.querySelector("#code-root .decisions") && exH.some((m) => /3-сынып оқушыларына/.test(m.content)), "Кодқа өту: таңдау мен шешімдер промпт картасында, идеяға толық чат тарихы барды", JSON.stringify(idea.decisions));
-  out.textContent += `\n${pass} өтті, ${fail} құлады\n`; document.title = fail ? "FAIL" : "PASS"; window.__done = { pass, fail };
-})().catch((e) => { out.textContent += "\nТЕСТ ҚАТЕСІ: " + e + "\n"; window.__done = { pass, fail: fail + 1 }; });
+  obs.disconnect();
+  const idea = Q.store.data.idea || {}, ib = sent[0] || {};
+  log(/Таңдалған нұсқа: Ғарыш математикасы/.test(idea.prompt || "") && /Аудитория: 3-сынып/.test(idea.prompt || "") && !!W.document.querySelector("#code-root .decisions"), "Кодқа өту: таңдау мен шешімдер промпт картасында", JSON.stringify(idea.decisions));
+  log(/3-сынып оқушыларына/.test(ib.message || "") && /Таңдалған нұсқа: Ғарыш математикасы/.test(ib.message || "") && (ib.history || []).length <= 6 && ib.model === "gemini-3.5-flash-lite" && ib.thinkingLevel === "minimal" && ib.stream === true && sawLive, "Кодқа өту: бірінші хабар + дайын шешімдер + соңғы 6 хабар, flash-lite/minimal, ағынмен карта көрінді", `history ${(ib.history || []).length}, ${ib.model}, ${ib.thinkingLevel}, live ${sawLive}`);
+  // жергілікті шешімдер: түс/аудитория/талап хабардан жиналады
+  const dd = Q.chat.decisionsOf("Маңызды талап: тек 5-сынып үшін, түсі көк болсын");
+  log(dd.includes("Аудитория: 5-сынып") && dd.includes("Стиль/түс: көк") && dd.some((x) => /^Талап: тек 5-сынып/.test(x)), "шешімдер чатта жергілікті жиналады", JSON.stringify(dd));
+  // 15 с шегі: сервер жауап бермесе, карта жергілікті құрастырылады
+  mock(() => new Promise(() => {}));
+  const t15 = performance.now();
+  const li = await Q.api.quickIdea({ first: "Мұғалімге «Кім жауап береді?» қосымшасы керек", decisions: ["Стиль/түс: жасыл"], recent: [], timeoutMs: 400 });
+  log(li.local && li.title === "Кім жауап береді?" && /Стиль\/түс: жасыл/.test(li.prompt) && performance.now() - t15 < 2500, "шек біткенде карта жергілікті құрастырылады", li.title);
+  out.textContent += `\n${pass} өтті, ${fail} құлады\n`; document.title = fail ? "FAIL" : "PASS"; restoreKey(); window.__done = { pass, fail };
+})().catch((e) => { restoreKey(); out.textContent += "\nТЕСТ ҚАТЕСІ: " + e + "\n"; window.__done = { pass, fail: fail + 1 }; });
 </script>
