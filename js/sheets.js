@@ -52,7 +52,7 @@
 ${code}`;
       let secs = null;
       for (let i = 0; i < 2 && !secs; i++) {
-        const r = await Q.api.chat({ web: false, stream: false, agent: true, model: Q.codegen.CODE_MODEL, message: ask + (i ? "\nЕскерту: тек жарамды JSON керек." : "") });
+        const r = await Q.api.chat({ web: false, stream: false, agent: true, model: Q.codegen.CODE_MODEL, thinking: "minimal", message: ask + (i ? "\nЕскерту: тек жарамды JSON керек." : "") });
         const j = Q.api.parseJSON(r.answer);
         if (j && Array.isArray(j.sections) && j.sections.length) secs = j.sections.slice(0, 9).map((x) => ({ title: String(x.title || "").slice(0, 80), text: String(x.text || "").slice(0, 700), code: String(x.code || "").split("\n").slice(0, 16).join("\n") }));
       }

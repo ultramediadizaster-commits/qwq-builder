@@ -56,7 +56,7 @@
       res = await fetch(S.base + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.key },
-        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream, ...(o.agent ? { agent: true } : {}), ...(o.model ? { model: o.model } : {}) }),
+        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream, ...(o.agent ? { agent: true } : {}), ...(o.model ? { model: o.model } : {}), ...(o.thinking && Q.api.thinking !== false ? { thinkingLevel: o.thinking } : {}) }),
         signal: ac.signal,
       });
     } catch (e) {
@@ -167,5 +167,5 @@
     try { return JSON.parse(t.slice(a, b + 1).replace(/,\s*([}\]])/g, "$1").replace(/[\u0000-\u001f]+/g, " ")); } catch (e) { return null; }
   }
 
-  Q.api = { chat, extractIdea, QErr, parseJSON };
+  Q.api = { chat, extractIdea, QErr, parseJSON, thinking: true };
 })(window.QWQ);

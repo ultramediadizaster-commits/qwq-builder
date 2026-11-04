@@ -1,6 +1,6 @@
 /* QWQ Builder · тексеру нәтижесін AI-мен тексеру (review) және табылған ақауларды түзету (fixJs) */
 (function (Q) {
-  const route = { agent: true, model: Q.codegen.CODE_MODEL };
+  const route = { agent: true, model: Q.codegen.CODE_MODEL, thinking: "minimal" };
   const TICKS = "```";
   const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
   const syntaxOk = (js) => { try { new AsyncFn(js); return true; } catch (e) { return false; } };   // түзету кодты бұзбасын
@@ -56,7 +56,7 @@ ${fence("js", o.js)}`,
   /** AI тексеруі: жоспардағы функциялар кодта толық жасалған ба, әр батырма әрекетке қосылған ба → ақаулар тізімі (қазақша) */
   async function review(o) {
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: false, tries: 2, ...route,
+      signal: o.sig, web: false, stream: false, tries: 2, ...route, thinking: "low",
       message: `Сен қатаң код тексерушісісің. Төменде қосымшаның жоспары, HTML және JS коды берілген.
 Тексер: 1) жоспардағы әр функция кодта толық жасалған ба; 2) әр батырма (button, data-go, data-open, onclick) бір нақты әрекетке қосылған ба (addEventListener немесе үлгінің data-go/data-open/data-close); 3) қай жері жұмыс істемейді (жоқ функция, бос өңдегіш, қате id, қате селектор).
 Жауапты ТЕК JSON түрінде қайтар (түсініктеме, ${TICKS} жоқ): {"ok":true,"problems":[]} немесе {"ok":false,"problems":[{"where":"батырма немесе функция атауы","what":"не жұмыс істемейді (қысқа, қазақша)"}]}. Ақау болмаса ok:true. Ең көбі 6 ақау, тек НАҚТЫ тапқандарың.

@@ -114,12 +114,12 @@
       const cur = html();
       // бір «толық HTML» сұрауы (үзілсе, жалғастырады)
       const gen = async (message) => {
-        const r = await Q.api.chat({ signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL, message, onDelta: (_, full) => setM(byteLen(full)) });
+        const r = await Q.api.chat({ signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL, thinking: "minimal", message, onDelta: (_, full) => setM(byteLen(full)) });
         let code = Q.code.extractHtml(r.answer), tries = 0;
         while (!Q.code.complete(code) && tries < 4) {
           tries++;
           const t = await Q.api.chat({
-            signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL,
+            signal: sig, web: false, stream: true, agent: true, model: Q.codegen.CODE_MODEL, thinking: "minimal",
             message: `Төмендегі HTML коды үзіліп қалды. Дәл үзілген жерден ТЕК қалған кодты жалғастыр, қайталама, \`\`\` қоспа, </html> тегімен аяқта.
 
 Соңғы бөлік:

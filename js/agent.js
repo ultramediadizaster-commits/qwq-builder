@@ -316,7 +316,7 @@
         const end = T.begin("жоспар");
         const tick = throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`));
         const p = await Q.api.chat({
-          signal: sig, web: false, stream: true, agent: true, model: Q.codegen.PLAN_MODEL,
+          signal: sig, web: false, stream: true, agent: true, model: Q.codegen.PLAN_MODEL, thinking: "low",
           message: `Сен тәжірибелі веб-әзірлеушісің. Мына қосымша үшін қысқа әзірлеу жоспарын жаса.\n\n${brief(idea)}\n\nЖауапты қазақша, Markdown пішімінде бер, 30 жолдан аспасын. Бөлімдер: ## Мақсат, ## Экрандар, ## Негізгі функциялар, ## Деректер (localStorage), ## Дизайн (түстер, көңіл-күй). Код жазба. Қысқа абзацтар мен тізімдер қолдан, абзацтардың арасында бос жол қалдыр.`,
           onDelta: tick,
         });
@@ -336,7 +336,7 @@
         fbP.catch(() => {});
         try {
           const r = await Q.api.chat({
-            signal: sc.signal, web: true, stream: false, tries: 2,
+            signal: sc.signal, web: true, stream: false, tries: 2, thinking: "low",
             message: `Мына қосымшаны жасау үшін интернеттен пайдалы мәлімет тап: нақты деректер, ережелер, формулалар, жақсы UI үлгілері.\n\n${brief(idea)}\n\nҚысқа маркерлі тізім бер (14 жолға дейін), қазақша, Markdown пішімінде, элементтердің арасында бос жол қалдыр.`,
           });
           const src = (r.sources || []).map((s) => (typeof s === "string" ? s : s.url ? `[${s.title || s.url}](${s.url})` : s.title || "")).filter(Boolean);

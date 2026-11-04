@@ -39,7 +39,7 @@
   /** Gemini: тапсырмадан 2–3 қысқа, нақты іздеу сөзін шығарады (қате болса — null) */
   async function aiQueries(idea, signal) {
     try {
-      const r = await Q.api.chat({ signal, web: false, stream: false, tries: 1, agent: true, model: "gemini-3.1-flash-lite",
+      const r = await Q.api.chat({ signal, web: false, stream: false, tries: 1, agent: true, model: "gemini-3.1-flash-lite", thinking: "low",
         message: `Мына қосымшаны жасау үшін Wikipedia-дан пайдалы мәлімет іздейміз. Тапсырмадан 2–3 ҚЫСҚА (1–3 сөз), нақты іздеу сөзін шығар: тақырыптың өзегі (зат есім, ұғым), қажет болса қазақша немесе орысша. Жалпы сөздер («қосымша», «жасау») болмасын.
 
 ${brief(idea)}
@@ -55,7 +55,7 @@ ${brief(idea)}
   async function aiFilter(idea, pick, signal) {
     try {
       const list = pick.map((p, i) => `${i}. ${p.title}: ${p.text.replace(/\s+/g, " ").slice(0, 220)}`).join("\n");
-      const r = await Q.api.chat({ signal, web: false, stream: false, tries: 1, agent: true, model: "gemini-3.1-flash-lite",
+      const r = await Q.api.chat({ signal, web: false, stream: false, tries: 1, agent: true, model: "gemini-3.1-flash-lite", thinking: "low",
         message: `Қосымша тапсырмасы:
 ${brief(idea)}
 
