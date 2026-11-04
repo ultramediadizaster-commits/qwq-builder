@@ -207,9 +207,15 @@ questions — код жазбас бұрын қолданушыға қойыла
   const QI_MS = 15000, QI_MAX = 3600;     // ~800 токен
   const qclip = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
   function localIdea(first, decisions, recent) {
+    // атау: таңдалған нұсқа → «…» ішіндегі атау → «X жасағым келеді / X жаса» → бірінші сөйлем
+    const picked = (decisions.find((d) => /^Таңдалған нұсқа:/.test(d)) || "").replace(/^Таңдалған нұсқа:\s*/, "");
     const q = (first.match(/«([^»]{3,60})»/) || [])[1];
-    const title = q || qclip(first.replace(/^(маңызды талап|мен|маған)[:\s]*/i, "").split(/[.!?\n:]/)[0], 48) || "Жаңа қосымша";
-    const summary = qclip(first.split(/(?<=[.!?])\s/)[0], 200);
+    const want = (first.match(/([^.!?\n:]{3,60}?)\s+(?:жасағым келеді|жасашы|жасаңыз|жаса|керек)(?=$|[\s.!?,])/i) || [])[1];
+    const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    const nom = (t) => (/[ыі]н$/i.test(t) ? t.replace(/([ыі])н$/i, "$1") : t.replace(/(ны|ні)$/i, ""));      // табыс септігі → атау: ойынын → ойыны, таймерін → таймері, қосымшаны → қосымша
+    const title = qclip(picked || q || (want && cap(nom(want.trim().replace(/^(мен|маған|бізге|маңызды талап)\s*/i, "")))) || first.split(/[.!?\n]/)[0], 48) || "Жаңа қосымша";
+    const sents = first.split(/(?<=[.!?])\s+/), main = sents.find((s) => !/^маңызды талап/i.test(s)) || sents[0];
+    const summary = qclip(main, 200);
     const talk = recent.filter((m) => m.role === "user" && m.content !== first).map((m) => "- " + qclip(m.content, 200)).join("\n");
     const prompt = `Тапсырма: ${first.trim()}\n\nЧаттағы шешімдер:\n${decisions.map((x) => "- " + x).join("\n") || "- (жоқ)"}${talk ? `\n\nСоңғы талқылаудағы сұраулар:\n${talk}` : ""}\n\nБарлық мәтін тек қазақша, телефонда да, проекторда да анық көрінсін.`;
     return { title, summary, prompt, questions: [], local: true };
@@ -236,8 +242,9 @@ ${decisions.map((x) => "- " + x).join("\n") || "- (әзірге жоқ)"}`;
     // шек сұраудың өзіне тәуелсіз: 15 с өтсе, сұрау тоқтатылып, карта бірден жергілікті құрастырылады
     const limit = new Promise((_, rej) => { timer = setTimeout(() => { ac.abort(); rej(new QErr("Уақыт шегі", "timeout")); }, o.timeoutMs || QI_MS); });
     try {
-      const r = await Promise.race([limit, chat({ message: ask, history: recent.slice(-6), web: false, stream: true, signal: ac.signal, agent: true, tries: 2,
-        models: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"], model: "gemini-3.5-flash-lite", thinkingLevel: "minimal", firstMs: 8000,
+      // бір модель бүкіл 15 с-ты пайдаланады: ауыстыру бірінші токенді күтудің бәрін босқа кетіреді (өлшеуде: 8 с + ауысу → 14 с)
+      const r = await Promise.race([limit, chat({ message: ask, history: recent.slice(-6), web: false, stream: true, signal: ac.signal, agent: true, tries: 1,
+        models: ["gemini-3.5-flash-lite"], model: "gemini-3.5-flash-lite", thinkingLevel: "minimal", firstMs: (o.timeoutMs || QI_MS) + 1000,
         onDelta: (_, full) => { if (full.length > QI_MAX) { ac.abort(); return; } o.onDraft && o.onDraft(draftOf(full)); } })]);
       const j = parseJSON(r.answer);
       if (!j || !j.title || !j.prompt) return localIdea(first, decisions, recent);
