@@ -57,7 +57,7 @@ ${o.brief}
 
 ЖОСПАР:
 ${(o.plan || "").slice(0, 3500)}
-${o.info ? `\nҚОСЫМША МӘЛІМЕТ:\n${o.info.slice(0, 2500)}\n` : ""}
+
 Дизайн: тапсырмада стиль айтылса, дәл соны ұста; айтылмаса — тақырыпқа сай бір тұтас, ұқыпты, заманауи дизайн таңда. Қосымша толыққанды болсын, шағын демо емес.
 
 ${REQS}
@@ -86,7 +86,7 @@ ${mode === "A" ? FORMAT_A : FORMAT_FULL}`;
   }
 
   /**
-   * write({idea, brief, plan, info, meta, split, sig, onLive(full), onPreview(html), onStage(text), onPart(name, parts)})
+   * write({idea, brief, plan, meta, split, sig, onLive(full), onPreview(html), onStage(text), onPart(name, parts)})
    * → { html, body, css, js }
    */
   async function write(o) {
@@ -158,7 +158,7 @@ ${pa.css.slice(0, 3000)}`;
   async function repair(o) {
     const meta = o.meta || {}, game = meta.type === "game";
     const list = o.errors.map((x) => "- " + x).join("\n");
-    const base = prompt({ brief: o.brief, plan: o.plan || "", info: "", meta });
+    const base = prompt({ brief: o.brief, plan: o.plan || "", meta });
     const r = await Q.api.chat({
       signal: o.sig, web: false, stream: true, ...route(),
       message: `${base}\n\nБІРІНШІ НҰСҚА ІСКЕ ҚОСЫЛҒАНДА МЫНА АҚАУЛАР ТАБЫЛДЫ:\n${list}\n\nОсы ақауларды толық түзетіп, ЖАҢА толық жауап қайтар (сол ЖАУАП ФОРМАТЫМЕН). Бет көрінетін мазмұнмен ашылуы тиіс${game ? "; ойын басталып, кадрлар сызылуы және басқару жұмыс істеуі тиіс" : "; бастапқы экран бірден көрінсін"}.\n\nАқаулы код (JS):\n\`\`\`js\n${(o.js || "").slice(0, 9000)}\n\`\`\``,

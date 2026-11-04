@@ -33,7 +33,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const D = Q.store.data;
   log(D.messages.length >= 2, "демо: чат хабарламалары", D.messages.length);
   log(!!D.idea && !!D.idea.prompt, "демо: идея/промпт бар");
-  log(!!D.files.plan && !!D.files.info && !!D.files.html, "демо: plan/info/html файлдары");
+  log(!!D.files.plan && !D.files.info && !!D.files.html, "демо: plan/html файлдары (іздеу файлы жоқ)");
   log(D.versions.length >= 1, "демо: нәтиже нұсқасы", D.versions.length);
   log(/<html/i.test(D.files.html) && /<\/html>/i.test(D.files.html), "демо: HTML толық");
   log(Q.store.list().length >= 1, "чат тарихында жазба бар");

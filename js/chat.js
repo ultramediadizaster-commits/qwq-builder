@@ -34,6 +34,35 @@
     if (chat.length > max) chat = "…" + chat.slice(-max);
     return [idea.title ? `ЖОБА: ${idea.title} — ${idea.summary || ""}` : "", dec ? "ЧАТТАҒЫ ШЕШІМДЕР:\n" + dec : "", chat ? "ЧАТ ТАРИХЫ (қысқаша):\n" + chat : "", edits ? "БҰРЫНҒЫ ӨЗГЕРТУЛЕР:\n" + edits : ""].filter(Boolean).join("\n\n");
   }
+  /* ---------- Шешімдер: чат барысында жергілікті жиналады (модельге қайта іздетпейміз) ---------- */
+  const COLORS = "қараңғы|жарық|түрлі-түсті|ашық|қою|жасыл|көк|қызыл|сары|күлгін|қызғылт|сарғыш|ақ|қара|алтын|күміс";
+  function decisionsOf(text) {
+    const t = String(text || ""), out = [];
+    const ch = t.match(/^Мен \d+-нұсқаны таңдадым: «([^»]+)»/);
+    if (ch) out.push("Таңдалған нұсқа: " + ch[1]);
+    const col = t.match(new RegExp(`(?:түс(?:і|ін)?|стиль|дизайн|фон)\\s*[:—-]?\\s*(${COLORS})|(${COLORS})(?:\\s|-)(?:түсті|түс|стиль|дизайн|фон|тақырып)`, "i"));
+    if (col) out.push("Стиль/түс: " + (col[1] || col[2]).toLowerCase());
+    const cls = t.match(/(\d{1,2})\s*[-–]?\s*сынып/i);
+    if (cls) out.push(`Аудитория: ${cls[1]}-сынып`);
+    else { const who = t.match(/(бастауыш|орта сынып|жоғары сынып|мұғалім|студент|мектеп жасына дейінгі)/i); if (who) out.push("Аудитория: " + who[1].toLowerCase()); }
+    const must = t.match(/(?:маңызды талап|міндетті|талап)\s*:\s*([^\n.]{4,140})/i);
+    if (must) out.push("Талап: " + must[1].trim());
+    return out;
+  }
+  function addDecisions(text) {
+    const add = decisionsOf(text);
+    if (!add.length) return;
+    const cur = S.data.decisions || [];
+    // бір түрдегі шешімнің соңғысы күшінде (мысалы, түс өзгерсе — жаңасы)
+    add.forEach((d) => { const k = d.split(":")[0]; if (k !== "Талап" && k !== "Таңдалған нұсқа") for (let i = cur.length - 1; i >= 0; i--) if (cur[i].split(":")[0] === k) cur.splice(i, 1); if (!cur.includes(d)) cur.push(d); });
+    S.data.decisions = cur.slice(-14);
+  }
+  /** Бұрынғы чаттар үшін (шешімдер жиналмаған): хабарлардан қайта жинау */
+  function allDecisions() {
+    if (!S.data.decisions) { S.data.decisions = []; S.data.messages.filter((m) => m.role === "user").forEach((m) => addDecisions(m.content)); }
+    return S.data.decisions.slice();
+  }
+
   /** Соңғы AI жауабындағы нөмірленген нұсқалар (2–5) → басылатын чиптер */
   function optionsOf(text) {
     const items = [];
@@ -122,6 +151,7 @@
     input.value = ""; fit();
     const history = historyFor(S.data.messages);
     const ol = $(".opt-row"); if (ol) ol.remove();
+    allDecisions(); addDecisions(text);
     S.data.messages.push({ role: "user", content: text });
     $("#hero").hidden = true;
     const mk = $(".make-row"); if (mk) mk.remove();
@@ -160,11 +190,24 @@
     if (!btn || btn.disabled) return;
     btn.disabled = true; btn.innerHTML = `${ic("spark")}Күте тұр…`;
     try {
-      const idea = await Q.api.extractIdea(historyFor(S.data.messages));
+      let idea;
+      if (Q.api.fast()) {
+        // жылдам жол: бірінші хабар + жергілікті шешімдер + соңғы 6 хабар; карта ағынмен жазылып көрінеді, 15 с-та бітпесе — жергілікті
+        const msgs = S.data.messages.map((m) => ({ role: m.role, content: m.content }));
+        const first = (msgs.find((m) => m.role === "user") || { content: "" }).content;
+        const live = el("div", { class: "msg msg--ai glass glass--flat idea-live" }, `<div class="il-h">${ic("spark", "ico ico--sm")}Промпт картасы жазылып жатыр…</div><b class="il-t"></b><div class="il-p"></div>`);
+        btn.closest(".make-row").before(live); scrollEnd(true);
+        const paint = throttleRaf((d) => { live.querySelector(".il-t").textContent = d.title; live.querySelector(".il-p").textContent = d.prompt; scrollEnd(false); });
+        try { idea = await Q.api.quickIdea({ first, decisions: allDecisions(), recent: msgs.slice(-6), onDraft: paint }); }
+        finally { paint.cancel(); live.remove(); }
+        idea.decisions = allDecisions();
+      } else {
+        idea = await Q.api.extractIdea(historyFor(S.data.messages));
+        const picked = S.data.messages.filter((m) => m.role === "user" && /^Мен \d+-нұсқаны таңдадым/.test(m.content)).map((m) => "Таңдалған нұсқа: " + (m.content.match(/«([^»]+)»/) || [, m.content])[1]);
+        idea.decisions = [...new Set([...(idea.decisions || []), ...picked])].slice(0, 12);
+      }
       const qs = idea.questions || []; delete idea.questions;
-      // чаттағы шешімдер мен таңдаулар промпт картасына жиналады (модель тізімі + чиптен таңдалған нұсқалар)
-      const picked = S.data.messages.filter((m) => m.role === "user" && /^Мен \d+-нұсқаны таңдадым/.test(m.content)).map((m) => "Таңдалған нұсқа: " + (m.content.match(/«([^»]+)»/) || [, m.content])[1]);
-      idea.decisions = [...new Set([...(idea.decisions || []), ...picked])].slice(0, 12);
+      if (idea.local) { delete idea.local; toast("Карта чаттағы шешімдерден жылдам құрастырылды.", "ok", 3000); }
       if (idea.decisions.length) idea.prompt += `\n\nЧАТТАҒЫ ШЕШІМДЕР МЕН ТАҢДАУЛАР (міндетті түрде ұстан):\n${idea.decisions.map((x) => "- " + x).join("\n")}`;
       if (qs.length && !(Q.demo && Q.demo.mock())) { btn.closest(".make-row").remove(); askQuestions(idea, qs); return; }
       startIdea(idea, false);
@@ -229,5 +272,5 @@
     renderAll();
   }
 
-  Q.chat = { init, renderAll, updateKeyWarn, send, historyFor, context, optionsOf, isBusy: () => busy };
+  Q.chat = { init, renderAll, updateKeyWarn, send, historyFor, context, optionsOf, decisionsOf, isBusy: () => busy };
 })(window.QWQ);

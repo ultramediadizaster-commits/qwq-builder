@@ -266,7 +266,6 @@ ${code}
       const z = new JSZip(), f = S.data.files;
       z.file("index.html", html());
       if (f.plan) z.file("жоспар.md", f.plan);
-      if (f.info) z.file("мәлімет.md", f.info);
       z.file("README.txt", `${S.data.idea?.title || "Қосымша"}\n\n${S.data.idea?.summary || ""}\n\nҚосымшаны ашу үшін index.html файлын браузерде ашыңыз.\nQWQ Builder арқылы жасалған.\n`);
       save(await z.generateAsync({ type: "blob" }), slug() + ".zip");
     } catch (e) { toast("ZIP жасау мүмкін болмады: " + (e.message || "белгісіз қате"), "err"); }

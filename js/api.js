@@ -80,7 +80,7 @@
       res = await fetch(S.base + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.key },
-        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: !!o.web, stream, ...(o.agent ? { agent: true } : {}), ...(o.model ? { model: o.model } : {}), ...(F && (o.thinkingLevel || o.thinking) ? { thinkingLevel: o.thinkingLevel || o.thinking } : {}) }),
+        body: JSON.stringify({ message: o.message, history: o.history || [], user: S.uid, web: false, stream, ...(o.agent ? { agent: true } : {}), ...(o.model ? { model: o.model } : {}), ...(F && (o.thinkingLevel || o.thinking) ? { thinkingLevel: o.thinkingLevel || o.thinking } : {}) }),
         signal: ac.signal,
       });
     } catch (e) {
@@ -156,7 +156,7 @@
     if (Q.demo && Q.demo.active) return Q.demo.chat(o);
     let last;
     const F = fast();
-    const max = o.tries || (F ? 6 : MAX_TRIES);     // міндетті емес сұраулар (мысалы, іздеу) үшін азырақ әрекет
+    const max = o.tries || (F ? 6 : MAX_TRIES);     // міндетті емес сұраулар үшін азырақ әрекет
     const chain = F && o.models && o.models.length ? o.models : null;
     for (let i = 0; i < max; i++) {
       const oi = chain ? Object.assign({}, o, { model: chain[Math.min(i, chain.length - 1)] }) : Object.assign({}, o);
@@ -201,6 +201,55 @@ questions — код жазбас бұрын қолданушыға қойыла
     throw new QErr("QWQ идеяны дұрыс пішімде қайтара алмады. Қайта бас.", "json");
   }
 
+  /* ---------- Жылдам «Кодқа өту»: чат → промпт картасы ----------
+     Модельге: бірінші хабар + жергілікті жиналған шешімдер + соңғы 6 хабар. gemini-3.5-flash-lite, ойлау minimal, ағынмен
+     (карта жазылып жатқаны бірден көрінеді), шығыс қысқа. 15 с ішінде бітпесе — карта жергілікті құрастырылады. */
+  const QI_MS = 15000, QI_MAX = 3600;     // ~800 токен
+  const qclip = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  function localIdea(first, decisions, recent) {
+    const q = (first.match(/«([^»]{3,60})»/) || [])[1];
+    const title = q || qclip(first.replace(/^(маңызды талап|мен|маған)[:\s]*/i, "").split(/[.!?\n:]/)[0], 48) || "Жаңа қосымша";
+    const summary = qclip(first.split(/(?<=[.!?])\s/)[0], 200);
+    const talk = recent.filter((m) => m.role === "user" && m.content !== first).map((m) => "- " + qclip(m.content, 200)).join("\n");
+    const prompt = `Тапсырма: ${first.trim()}\n\nЧаттағы шешімдер:\n${decisions.map((x) => "- " + x).join("\n") || "- (жоқ)"}${talk ? `\n\nСоңғы талқылаудағы сұраулар:\n${talk}` : ""}\n\nБарлық мәтін тек қазақша, телефонда да, проекторда да анық көрінсін.`;
+    return { title, summary, prompt, questions: [], local: true };
+  }
+  /** Ағындағы жартылай JSON-нан көрсетуге болатын title/prompt мәтінін алу */
+  function draftOf(full) {
+    const pick = (k) => { const m = full.match(new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`)); return m ? m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\") : ""; };
+    return { title: pick("title"), prompt: pick("prompt") };
+  }
+  async function quickIdea(o) {
+    const first = String(o.first || "").trim(), decisions = o.decisions || [], recent = o.recent || [];
+    const ask = `Төмендегі деректер бойынша қолданушының қосымша идеясын қорытындыла. Жауапты ТЕК таза JSON пішімінде қайтар (markdown, түсініктеме қоспа), қысқа:
+{"title":"қысқа атау (3–5 сөз)","summary":"бір сөйлем","prompt":"веб-әзірлеушіге тапсырма: мақсаты, экрандар, негізгі функциялар, деректер, дизайн. Қазақша, 80–180 сөз. Бірінші хабардағы талаптар мен ЖИНАЛҒАН ШЕШІМДЕР міндетті түрде кірсін","questions":[{"q":"қысқа сұрақ","options":["нұсқа","нұсқа","нұсқа"]}]}
+questions — 0–3 нақтылау сұрағы (2–4 қысқа нұсқамен), тек шешілмеген маңызды нәрсе туралы (мысалы стиль не аудитория шешімдерде жоқ болса). Тапсырма нақты болса — "questions":[].
+
+БІРІНШІ ХАБАР (негізгі талап):
+${qclip(first, 1500)}
+
+ЖИНАЛҒАН ШЕШІМДЕР (дайын, қайта іздеме):
+${decisions.map((x) => "- " + x).join("\n") || "- (әзірге жоқ)"}`;
+    const ac = new AbortController(); let timedOut = false, long = false;
+    const link = () => ac.abort(); if (o.signal) o.signal.addEventListener("abort", link, { once: true });
+    const timer = setTimeout(() => { timedOut = true; ac.abort(); }, o.timeoutMs || QI_MS);
+    try {
+      const r = await chat({ message: ask, history: recent.slice(-6), web: false, stream: true, signal: ac.signal, agent: true, tries: 2,
+        models: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"], model: "gemini-3.5-flash-lite", thinkingLevel: "minimal", firstMs: 8000,
+        onDelta: (_, full) => { if (full.length > QI_MAX) { long = true; ac.abort(); return; } o.onDraft && o.onDraft(draftOf(full)); } });
+      const j = parseJSON(r.answer);
+      if (!j || !j.title || !j.prompt) return localIdea(first, decisions, recent);
+      const p = Array.isArray(j.prompt) ? j.prompt.join("\n") : typeof j.prompt === "object" ? JSON.stringify(j.prompt, null, 2) : String(j.prompt);
+      const questions = (Array.isArray(j.questions) ? j.questions : [])
+        .map((x) => ({ q: String((x && x.q) || "").trim().replace(/\s*:+\s*$/, "").slice(0, 80), options: (Array.isArray(x && x.options) ? x.options : []).map((v) => String(v).trim().slice(0, 40)).filter((v) => v && !/^өзің шеш/i.test(v)).slice(0, 4) }))
+        .filter((x) => x.q && x.options.length >= 2).slice(0, 3);
+      return { title: String(j.title).slice(0, 80), summary: String(j.summary || "").slice(0, 240), prompt: p, questions };
+    } catch (e) {
+      if (o.signal && o.signal.aborted) throw e;
+      return localIdea(first, decisions, recent);   // 15 с шегі, тым ұзын жауап, желі не сервер ақауы — карта жергілікті құрастырылады
+    } finally { clearTimeout(timer); if (o.signal) o.signal.removeEventListener("abort", link); }
+  }
+
   function parseJSON(t) {
     if (!t) return null;
     t = t.replace(/```(?:json)?/gi, "");
@@ -210,5 +259,5 @@ questions — код жазбас бұрын қолданушыға қойыла
     try { return JSON.parse(t.slice(a, b + 1).replace(/,\s*([}\]])/g, "$1").replace(/[\u0000-\u001f]+/g, " ")); } catch (e) { return null; }
   }
 
-  Q.api = { chat, extractIdea, QErr, parseJSON, fast, CHAIN, stripNotice };
+  Q.api = { chat, extractIdea, quickIdea, localIdea, QErr, parseJSON, fast, CHAIN, stripNotice };
 })(window.QWQ);

@@ -51,11 +51,10 @@ document.getElementById("stop").addEventListener("click",function(){clearInterva
   const real = Q.api.chat;
   Q.api.chat = async function (o) {
     const m = o.message || "";
-    calls.push({ k: o.web ? "web" : /әзірлеу жоспарын/.test(m) ? "plan" : /АҚАУЛАР ТАБЫЛДЫ/.test(m) ? "repair" : /ҚЫСҚА патчтар жаса/.test(m) ? "fix" : /сапа тізімімен/.test(m) ? "improve" : /Әр функция толық/.test(m) ? "review" : /ЖАУАП ФОРМАТЫ/.test(m) ? "code" : /Пайдаланушы өтініші/.test(m) ? "edit" : "other", thinkingLevel: o.thinkingLevel, message: m });
+    calls.push({ k: /әзірлеу жоспарын/.test(m) ? "plan" : /АҚАУЛАР ТАБЫЛДЫ/.test(m) ? "repair" : /ҚЫСҚА патчтар жаса/.test(m) ? "fix" : /сапа тізімімен/.test(m) ? "improve" : /Әр функция толық/.test(m) ? "review" : /ЖАУАП ФОРМАТЫ/.test(m) ? "code" : /Пайдаланушы өтініші/.test(m) ? "edit" : "other", thinkingLevel: o.thinkingLevel, message: m });
     await new Promise((r) => setTimeout(r, 40));
     let ans = "[]";
-    if (o.web) ans = "- Нақты мәлімет\n- Дереккөз";
-    else if (/әзірлеу жоспарын/.test(m)) ans = "## Мақсат\nӘзірлеу жоспары.\n\n## Функциялар\n- Негізгі\n";
+    if (/әзірлеу жоспарын/.test(m)) ans = "## Мақсат\nӘзірлеу жоспары.\n\n## Функциялар\n- Негізгі\n";
     else if (/АҚАУЛАР ТАБЫЛДЫ/.test(m)) ans = cur.resp(1);
     else if (/ҚЫСҚА патчтар жаса/.test(m)) ans = cur.patch ? cur.patch() : "[]";
     else if (/сапа тізімімен/.test(m)) ans = "[]";

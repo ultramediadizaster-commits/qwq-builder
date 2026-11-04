@@ -367,3 +367,7 @@
 .opt-row{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 14px}
 .decisions{margin:12px 0 4px}
 .decisions ul{margin:6px 0 0;padding-left:20px;color:var(--text-2);font-size:14px;display:grid;gap:3px}
+/* ---------- «Кодқа өту»: промпт картасы ағынмен жазылып жатыр ---------- */
+.idea-live .il-h{display:flex;align-items:center;gap:8px;color:var(--text-2);font-size:13.5px;margin-bottom:8px}
+.idea-live .il-t{display:block;font-size:16px;margin-bottom:6px}
+.idea-live .il-p{white-space:pre-wrap;font-size:14px;color:var(--text-2);max-height:220px;overflow:auto}

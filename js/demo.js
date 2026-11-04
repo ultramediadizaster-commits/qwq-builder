@@ -57,8 +57,6 @@ show();renderHist();`;
     prompt: "Қазақша–ағылшынша сөздерді жаттауға арналған қосымша жаса.\n\nЭкрандар: бір негізгі экран.\nФункциялар: карточканы басқанда айналып аудармасы көрінеді; «Білемін» және «Қайта» батырмалары; прогресс жолағы; білген және қайталанған сөздер санағышы; ең жақсы нәтиже (рекорд) localStorage-та сақталады.\nДеректер: 12 сөз, араластырылып беріледі.\nДизайн: қараңғы фон, жұмсақ градиент, үлкен жұмсақ карточкалар, көгілдір акцент, мобильді экранға бейімді.",
   };
   const PLAN = "## Мақсат\nҚазақша сөздерді карточкамен жаттату.\n\n## Экрандар\n- Негізгі экран: карточка, прогресс, санауыштар.\n- Қорытынды экраны.\n\n## Негізгі функциялар\n- Карточканы басқанда 3D айналу.\n- «Білемін» / «Қайта» таңдауы.\n- Рекордты сақтау.\n\n## Деректер (localStorage)\n- `best`: ең жақсы нәтиже.\n\n## Дизайн\nҚараңғы фон, көгілдір акцент, жұмсақ анимация.";
-  const INFO = "- Интервалды қайталау (spaced repetition) жаттауды жақсартады.\n- Карточка тәсілі (flashcards) сөз қорын жылдам толықтырады.\n- Бір сессияға 10–15 сөз оңтайлы.\n- Көрнекі кері байланыс (прогресс жолағы) мотивацияны арттырады.";
-  const SOURCES = [{ title: "Spaced repetition", url: "https://en.wikipedia.org/wiki/Spaced_repetition" }, { title: "Flashcard", url: "https://en.wikipedia.org/wiki/Flashcard" }, { title: "Vocabulary learning", url: "https://en.wikipedia.org/wiki/Vocabulary" }];
   const CHAT = [
     "Керемет идея! Сөз жаттауға арналған қосымшаны былай елестетемін:\n\n- **Карточкалар:** сөзді көріп, басқанда аудармасы шығады\n- **Өзін-өзі тексеру:** «Білемін» немесе «Қайта»\n- **Прогресс:** жолақ пен санауыштар\n\nҚосымша не қосайық, мысалы, рекорд?",
     "Түсіндім, соны қосамын. Бәрі дайын, «Кодқа өту» батырмасын басуға болады.",
@@ -76,7 +74,6 @@ show();renderHist();`;
     kind(m, o) {
       if (/JSON пішімінде/.test(m)) return "idea";
       if (/әзірлеу жоспарын/.test(m)) return "plan";
-      if (o.web) return "info";
       if (/ТҮСІНДІРУ ЖАУАП ФОРМАТЫ/.test(m)) return "explain";
       if (/Әр функция толық жасалған ба/.test(m)) return "review";
       if (/Пайдаланушы өтініші/.test(m)) return "edit";
@@ -125,8 +122,6 @@ window.QWQ_RECORDING = ${d};
       let ans, srcs = [];
       if (kind === "idea") ans = JSON.stringify(IDEA);
       else if (kind === "plan") ans = PLAN;
-      else if (o.web && (() => { try { return localStorage.getItem("qwq.demo.web") === "502"; } catch (e) { return false; } })()) throw new Q.api.QErr("QWQ сервері жауап бермеді (502).", "http", false); // тест: Worker іздеуінің 502 қатесін имитациялау
-      else if (o.web) { ans = INFO; srcs = SOURCES; await sleep(1100); }
       else if (kind === "explain") ans = JSON.stringify({ sections: [
         { title: "Құрылым (HTML)", text: "HTML — беттің қаңқасы. Мұнда тақырып, карточка және батырмалар орналасқан.", code: '<button class="btn primary grow" id="yes">Білемін</button>' },
         { title: "Дизайн (CSS)", text: "CSS беттің түсін, өлшемін және жұмсақ бұрыштарын белгілейді.", code: ":root{--accent:#0a84ff}" },

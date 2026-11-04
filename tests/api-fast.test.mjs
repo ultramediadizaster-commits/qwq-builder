@@ -103,10 +103,14 @@ test("stripNotice: қалыпты «⚠️» мәтінін тиіспейді",
   assert.strictEqual(api.stripNotice("⚠️ Назар аудар: кілтті жаспа", true), "⚠️ Назар аудар: кілтті жаспа");
   assert.strictEqual(api.stripNotice("Мәтін ⚠️ ортасында", true), "Мәтін ⚠️ ортасында");
 });
-test("Builder ешқашан web:true жібермейді: чат пен жылдам конвейер web:false; web:true тек ескі (qwq.fast=0) режимде", () => {
-  const read = (f) => readFileSync(join(here, "..", "js", f), "utf8");
-  assert.ok(!/web:\s*true/.test(read("chat.js")) && !/web:\s*true/.test(read("codegen.js")) && !/web:\s*true/.test(read("fix.js")) && !/web:\s*true/.test(read("websearch.js")));
-  const a = read("agent.js"), i = a.indexOf("web: true");
-  assert.ok(i > a.indexOf("if (Q.api.fast()) {", a.indexOf("const searchP")), "web:true жылдам тармақтан кейін тұр");
-  assert.strictEqual(a.split("web: true").length - 1, 1);
+test("интернеттен іздеу жоқ: websearch.js жоқ, ешбір файлда web: true жоқ, сервер сұрауы әрқашан web:false", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+  const dir = join(here, "..", "js");
+  assert.ok(!existsSync(join(dir, "websearch.js")));
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".js") && x !== "demo-recording.js")) {
+    const t = readFileSync(join(dir, f), "utf8");
+    assert.ok(!/web:\s*true|Q\.websearch|wikipedia\.org/i.test(t), f);
+  }
+  await api.chat({ message: "x", web: true });          // тіпті web:true берілсе де
+  assert.strictEqual(seen[0].web, false);
 });

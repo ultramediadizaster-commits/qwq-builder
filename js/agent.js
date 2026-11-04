@@ -4,17 +4,16 @@
   const S = Q.store;
   const root = () => $("#code-root");
 
-  // Жоспар мен іздеу параллель; "Дайын" код жазылған бойда, ал тексеру фонда жалғасады
+  // Агент тек өз білімімен және чаттағы мәліметтермен жұмыс істейді (интернеттен іздеу жоқ)
   const STEPS = [
     { k: "plan", t: "Жоспар құру", i: "list", d: "" },
-    { k: "search", t: "Интернеттен іздеу", i: "globe", d: "" },
     { k: "code", t: "Кодты жазу", i: "code", d: "" },
     { k: "verify", t: "Тексеру", i: "shield", d: "" },
     { k: "improve", t: "Жақсарту", i: "spark", d: "" },
     { k: "done", t: "Дайын", i: "flag", d: "" },
   ];
   const FILES = {
-    plan: { name: "жоспар.md", i: "file" }, info: { name: "мәлімет.md", i: "globe" },
+    plan: { name: "жоспар.md", i: "file" },
     html: { name: "index.html", i: "code" }, css: { name: "style.css", i: "file" }, js: { name: "app.js", i: "code" },
   };
 
@@ -286,9 +285,6 @@
     return { html: best.html, body: best.body, css: best.css, js: best.js, fixes, left, report, blank, chk };
   }
 
-  // Іздеу тек нақты деректер/ережелер керек тақырыптарға; ойын, құрал, лендингтерге керек емес
-  const FACT = /курс|валют|ауа райы|погод|рецепт|калори|тарих|истори|ереже|заң|формул|статистик|жаңалық|новост|нарық|ипотек|несие|кредит|салық|налог|футбол|география|планета|ғарыш|дәрі|ауру|денсаулық|сөздік|энциклопед|анықтамалық|тест|викторин|емтихан|ұлттық|салт|мақал/i;
-  const searchNeeded = (idea, type) => type !== "game" && FACT.test(`${idea.title} ${idea.summary} ${idea.prompt}`);
 
   async function run() {
     const idea = S.data.idea;
@@ -314,8 +310,8 @@
     const split = type !== "game" && (Q.api.fast() ? idea.prompt.length > 2400 : idea.prompt.length > 1300);   // кезекпен жазу = 2 тізбекті сұрау, сондықтан жылдам режимде тек шынымен үлкен жобаға
     S.save();
     try {
-      /* 1+2. Жоспар және интернеттен іздеу ПАРАЛЛЕЛЬ */
-      setStep("plan", "active", ""); setStep("search", "active", "");
+      /* 1. Жоспар */
+      setStep("plan", "active", "");
       console.log(`[QWQ] түрі: ${type}${split ? ", кезекпен жазу" : ""}`);
       const planP = (async () => {
         const end = T.begin("жоспар");
@@ -330,69 +326,9 @@
         setStep("plan", "done", "");
         end();
       })();
-      const searchP = (async () => {
-        const end = T.begin("іздеу");
-        if (Q.api.fast()) {
-          // Жылдам режим: қарапайым қосымшада іздеу жоқ; қажет болса — тек Wikipedia (Gemini-сіз), ең көбі 5 с, жоспармен қатар
-          const H = "# Жиналған мәлімет\n\n";
-          try {
-            if (!searchNeeded(idea, type)) {
-              S.data.files.info = H + "Қарапайым қосымша: сыртқы мәлімет керек емес, жоба жоспар бойынша жасалады.\n"; addFileRow("info");
-              setStep("search", "done", "Қажет емес — өткізілді");
-            } else {
-              setStep("search", "active", "Wikipedia…");
-              const fb = await Q.websearch.run(idea, { signal: sig, budget: 5000, fast: true });
-              if (fb) {
-                S.data.files.info = H + fb.text + "\n\n## Дереккөздер\n" + fb.sources.map((x) => `- [${x.title}](${x.url})`).join("\n") + "\n"; addFileRow("info");
-                setStep("search", "done", `${fb.sources.length} дереккөз: ${fb.sources.map((x) => x.title.replace(/ — Wikipedia$/, "")).slice(0, 3).join(", ")}`);
-              } else {
-                S.data.files.info = H + "Іздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
-                setStep("search", "warn", "Іздеу өткізілді");
-              }
-            }
-          } finally { end(); }
-          return;
-        }
-        // іздеу міндетті емес: 12 с-тан ұзаққа созылса (502, қайталау, үнсіздік), оны тоқтатып жалғастырамыз
-        const sc = new AbortController(); let timedOut = false;
-        const link = () => sc.abort(); sig.addEventListener("abort", link, { once: true });
-        const timer = setTimeout(() => { timedOut = true; sc.abort(); }, 12000);
-        let info = "";
-        const fbP = Q.websearch.run(idea, { signal: sig, budget: 25000 }).catch((e) => { if (e.code === "abort") throw e; return null; });   // резерв іздеу Worker-мен қатар жүреді
-        fbP.catch(() => {});
-        try {
-          const r = await Q.api.chat({
-            signal: sc.signal, web: true, stream: false, tries: 2, thinking: "low",
-            message: `Мына қосымшаны жасау үшін интернеттен пайдалы мәлімет тап: нақты деректер, ережелер, формулалар, жақсы UI үлгілері.\n\n${brief(idea)}\n\nҚысқа маркерлі тізім бер (14 жолға дейін), қазақша, Markdown пішімінде, элементтердің арасында бос жол қалдыр.`,
-          });
-          const src = (r.sources || []).map((s) => (typeof s === "string" ? s : s.url ? `[${s.title || s.url}](${s.url})` : s.title || "")).filter(Boolean);
-          info = `# Жиналған мәлімет\n\n${r.answer}\n` + (src.length ? `\n## Дереккөздер\n${src.map((x) => "- " + x).join("\n")}\n` : "");
-          S.data.files.info = info; addFileRow("info");
-          const urls = new Set((r.answer.match(/https?:\/\/[^\s)\]>"']+/g) || []).map((u) => u.replace(/[.,;]+$/, "")));
-          const n = src.length || urls.size;
-          const names = src.slice(0, 3).map((x) => (x.match(/^\[([^\]]+)\]/) || [, x])[1]).filter((x) => x && !/^https?:/.test(x)).join(", ");
-          setStep("search", "done", n ? `${n} дереккөз${names ? ": " + names : ""}` :(r.tools || []).includes("web_search") ? "Іздеу орындалды" : "");
-        } catch (e) {
-          if (e.code === "abort" && !timedOut) throw e;
-          // Worker іздеуі жауап бермеді → кілтсіз резерв: Wikipedia (kk, ru) + Jina Reader
-          setStep("search", "active", "Резерв іздеу: Wikipedia…");
-          const fb = await fbP;
-          if (fb) {
-            S.data.files.info = `# Жиналған мәлімет\n\n_Негізгі іздеу жауап бермеді, мәлімет Wikipedia мен Jina Reader арқылы алынды._\n\n${fb.text}\n\n## Дереккөздер\n${fb.sources.map((s) => `- [${s.title}](${s.url})`).join("\n")}\n`;
-            addFileRow("info");
-            info = S.data.files.info;
-            setStep("search", "done", `${fb.sources.length} дереккөз: ${fb.sources.map((s) => s.title.replace(/ — Wikipedia$/, "")).slice(0, 3).join(", ")}`);
-          } else {
-            S.data.files.info = "# Жиналған мәлімет\n\nІздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
-            setStep("search", "warn", "Іздеу өткізілді");
-          }
-        } finally { clearTimeout(timer); sig.removeEventListener("abort", link); end(); }
-      })();
-      try { await Promise.all([planP, searchP]); }
-      catch (e) { R.ctrl.abort(); await Promise.allSettled([planP, searchP]); throw e; }
-      const info = S.data.files.info || "";
+      await planP;
 
-      /* 3. Кодты БІР сұраумен жазу (дайын үлгіге мазмұн + логика) */
+      /* 2. Кодты нөлден жазу (бір сұрау; үлкен жобада — кезекпен) */
       cur = "code";
       setStep("code", "active", type === "game" ? "Ойын нөлден жазылып жатыр" : "Қосымша нөлден жазылып жатыр");
       R.ui.live.dataset.on = "1"; R.ui.live.hidden = R.hide;
@@ -416,7 +352,7 @@
       };
       const endCode = T.begin("код (бір сұрау)");
       const out = await Q.codegen.write({
-        idea, brief: brief(idea), plan: S.data.files.plan || "", info, sig, meta, split,
+        idea, brief: brief(idea), plan: S.data.files.plan || "", sig, meta, split,
         onLive: (full) => paint(full), onPreview, onStage: (t) => setStep("code", "active", t),
         onPart: (k, p) => { const F2 = S.data.files; F2.body = p.body; F2.css = p.css; F2.html = p.html; addFileRow("html"); if (p.css) { addFileRow("css"); } showMini(p.html); },
       });

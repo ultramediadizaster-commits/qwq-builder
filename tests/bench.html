@@ -16,7 +16,7 @@ const out = document.getElementById("out"), $ = (id) => document.getElementById(
 const log = (t) => { out.textContent += t + "\n"; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const s1 = (ms) => (ms == null ? "—" : (ms / 1000).toFixed(1));
-const kind = (m) => /әзірлеу жоспарын/.test(m) ? "plan" : /ЖАУАП ФОРМАТЫ/.test(m) ? "code" : /ақаулар табылды|ӨЛІ|Төмендегі қосымшаны іске/.test(m) ? "fix" : /код тексерушісісің/.test(m) ? "review" : /сапа тізімімен/i.test(m) ? "improve" : /интернеттен/.test(m) ? "search" : /Wikipedia|іздеу сөз/.test(m) ? "search" : "other";
+const kind = (m) => /әзірлеу жоспарын/.test(m) ? "plan" : /ЖАУАП ФОРМАТЫ/.test(m) ? "code" : /ақаулар табылды|ӨЛІ|Төмендегі қосымшаны іске/.test(m) ? "fix" : /код тексерушісісің/.test(m) ? "review" : /сапа тізімімен/i.test(m) ? "improve" : "other";
 
 async function load(mode, key) {
   localStorage.setItem("qwq.key", key); localStorage.setItem("qwq.demo", "0"); localStorage.setItem("qwq.tour.done", "1");
@@ -59,19 +59,19 @@ async function runApp(mode, key, idea) {
   const total = performance.now() - t0, D = Q.store.data, r = D.report || { left: ["есеп жоқ"] };
   const stage = (k) => { const cs = calls.filter((c) => c.k === k && c.ms != null); return cs.length ? { sum: cs.reduce((a, c) => a + c.ms, 0), first: Math.min(...cs.map((c) => c.first ?? c.ms)), n: cs.length } : null; };
   const P = (Q.constructor && $("app").contentWindow.__qwqPerf || {})["агент (тексерумен)"];
-  const stages = {}; for (const k of ["plan", "search", "code", "review", "fix", "improve"]) stages[k] = stage(k);
+  const stages = {}; for (const k of ["plan", "code", "review", "fix", "improve"]) stages[k] = stage(k);
   const html = (D.files && D.files.html) || "";
   return { mode, name: idea.title, total, stages, perf: P && P.stages, left: r.left.length, leftList: r.left, type: D.meta && D.meta.type, style: D.meta && D.meta.style, htmlBytes: html.length, jsBytes: ((D.files && D.files.js) || "").length, calls: calls.length };
 }
 
 function table(rows) {
-  log("\n| Режим | Сынақ | 1-ші сөз/токен | Жоспар | Іздеу | Код (1-ші токен / жалпы) | Тексеру+түзету | Жақсарту | ЖИЫНЫ | Ақау | Көлемі |\n|---|---|---|---|---|---|---|---|---|---|---|");
+  log("\n| Режим | Сынақ | 1-ші сөз/токен | Жоспар | Код (1-ші токен / жалпы) | Тексеру+түзету | Жақсарту | ЖИЫНЫ | Ақау | Көлемі |\n|---|---|---|---|---|---|---|---|---|---|");
   for (const r of rows) {
     if (r.name === "чат") { log(`| ${r.mode} | чат | ${s1(r.firstWord)} с | — | — | — | — | — | ${s1(r.total)} с | — | ${r.extra}${r.err ? " ҚАТЕ: " + r.err : ""} |`); continue; }
     const g = (k) => (r.stages[k] ? s1(r.stages[k].sum) : "—");
     const code = r.stages.code ? `${s1(r.stages.code.first)} / ${s1(r.stages.code.sum)}` : "—";
     const ver = (r.stages.review || r.stages.fix) ? `${s1((r.stages.review?.sum || 0) + (r.stages.fix?.sum || 0))}` : "—";
-    log(`| ${r.mode} | ${r.name} (${r.type}/${r.style}) | ${s1(r.stages.plan?.first)} с | ${g("plan")} с | ${r.perf ? s1((r.perf.find((x) => x.label === "іздеу") || {}).sec * 1000) : g("search")} с | ${code} с | ${ver} с | ${g("improve")} с | ${s1(r.total)} с | ${r.left} | ${r.htmlBytes} б (js ${r.jsBytes}) |`);
+    log(`| ${r.mode} | ${r.name} (${r.type}/${r.style}) | ${s1(r.stages.plan?.first)} с | ${g("plan")} с | ${code} с | ${ver} с | ${g("improve")} с | ${s1(r.total)} с | ${r.left} | ${r.htmlBytes} б (js ${r.jsBytes}) |`);
   }
 }
 
