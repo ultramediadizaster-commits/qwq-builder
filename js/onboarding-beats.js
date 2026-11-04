@@ -19,14 +19,7 @@
       { c: 8, t: ".msg--ai", e: "happy" },
       { c: 10, t: ".acts--ai .cp-msg", e: "normal", wow: true },
     ],
-    /* 3. Микрофон */ [
-      { c: 0, view: "chat", t: "#mic", e: "normal", wow: true },
-      { c: 2, t: "#input", e: "normal" },
-      { c: 3, t: "#mic", e: "normal" },
-      { c: 5, t: "#mic", e: "thinking" },
-      { c: 7, view: "result", t: "#tweak-mic", e: "happy", wow: true },
-    ],
-    /* 4. «Осыдан қосымша жасау» */ [
+    /* 3. «Осыдан қосымша жасау» */ [
       { c: 0, view: "chat", t: "#make", e: "happy", wow: true },
       { c: 1, t: "#make", e: "thinking" },
       { c: 2, t: "#msgs", e: "thinking" },
@@ -34,7 +27,7 @@
       { c: 4, t: "#make", e: "normal" },
       { c: 6, t: "#make", e: "happy" },
     ],
-    /* 5. Промпт карточкасы */ [
+    /* 4. Промпт карточкасы */ [
       { c: 0, view: "code", t: "#code-root .card", e: "happy", wow: true, label: { "#go-agent": "Агентке жіберу" } },
       { c: 2, t: "#code-root .card h2", e: "normal" },
       { c: 3, t: "#pbox", open: "prompt", e: "normal", wow: true },
@@ -43,7 +36,7 @@
       { c: 6, t: "#go-agent", e: "thinking" },
       { c: 7, t: "#agent-card", e: "happy" },
     ],
-    /* 6. Агенттің қадамдары */ [
+    /* 5. Агенттің қадамдары */ [
       { c: 0, view: "code", t: "#steps", e: "thinking", wow: true, label: { "#peek": "Нәтижені бірден көру" } },
       { c: 1, t: "#timer", e: "normal" },
       { c: 2, t: '[data-k="plan"]', e: "thinking" },
@@ -53,7 +46,7 @@
       { c: 7, t: "#files", e: "normal" },
       { c: 8, t: "#peek", e: "happy" },
     ],
-    /* 7. Тест есебі */ [
+    /* 6. Тест есебі */ [
       { c: 0, view: "code", t: '[data-k="verify"]', e: "thinking" },
       { c: 1, t: '[data-k="verify"]', e: "happy" },
       { c: 2, t: '[data-k="verify"]', e: "thinking" },
@@ -63,7 +56,7 @@
       { c: 6, t: "#report .rp-stats", e: "normal" },
       { c: 7, t: "#report", e: "happy" },
     ],
-    /* 8. Нәтиже */ [
+    /* 7. Нәтиже */ [
       { c: 0, view: "result", t: "#fb", e: "happy", wow: true },
       { c: 2, t: ".seg", e: "normal" },
       { c: 3, t: "#fb", e: "thinking" },
@@ -72,7 +65,7 @@
       { c: 6, t: '#t-how|#more-menu [data-t="t-how"]', open: "more-if-hidden:#t-how", e: "happy", wow: true },
       { c: 8, t: '#more-menu [data-t="t-html"]', open: "more", e: "normal" },
     ],
-    /* 9. QR және телефонға орнату */ [
+    /* 8. QR және телефонға орнату */ [
       { c: 0, view: "result", t: "#t-qr", e: "happy", wow: true },
       { c: 1, t: "#qr-img", open: "qr", e: "happy", wow: true },
       { c: 3, t: "#qr-url", e: "normal" },
@@ -80,7 +73,7 @@
       { c: 6, t: "#qr-img", e: "normal" },
       { c: 7, t: "#qr-img", e: "happy" },
     ],
-    /* 10. Бүйірлік мәзір мен галерея */ [
+    /* 9. Бүйірлік мәзір мен галерея */ [
       { c: 0, view: "chat", t: "#btn-menu", e: "normal", wow: true },
       { c: 1, t: "#d-list", open: "drawer", e: "normal" },
       { c: 2, t: "#d-list", e: "thinking" },
@@ -90,7 +83,7 @@
       { c: 7, t: "#d-gal", e: "happy" },
       { c: 9, t: "#d-gal", e: "happy" },
     ],
-    /* 11. Баптаулар және қоштасу */ [
+    /* 10. Баптаулар және қоштасу */ [
       { c: 0, view: "chat", t: "#btn-settings", e: "normal", wow: true },
       { c: 2, t: "#set-google", open: "settings", e: "happy", wow: true },
       { c: 3, t: "#cloud-box", e: "happy" },

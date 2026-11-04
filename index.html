@@ -53,7 +53,6 @@
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 4-6 7.500-6s6.500 2 7.500 6"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 18h.01"/></symbol>
-    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
   </defs>
 </svg>
@@ -103,14 +102,12 @@
     <div class="dock" id="dock-chat">
       <form class="composer glass lens" id="composer" autocomplete="off">
         <textarea id="input" rows="1" placeholder="Идеяңды жаз…" aria-label="Хабарлама" enterkeyhint="send"></textarea>
-        <button class="btn btn--icon mic glass glass--flat" id="mic" type="button" aria-label="Микрофон" aria-pressed="false" hidden><svg class="ico"><use href="#i-mic"/></svg></button>
         <button class="btn btn--icon btn--primary glass" id="send" type="submit" aria-label="Жіберу"><svg class="ico"><use href="#i-send"/></svg></button>
       </form>
     </div>
     <div class="dock" id="dock-tweak" hidden>
       <form class="composer glass lens" id="tweak-form" autocomplete="off">
         <textarea id="tweak" rows="1" placeholder="Не өзгертейік?" aria-label="Өзгерту сұрауы" enterkeyhint="send"></textarea>
-        <button class="btn btn--icon mic glass glass--flat" id="tweak-mic" type="button" aria-label="Микрофон" aria-pressed="false" hidden><svg class="ico"><use href="#i-mic"/></svg></button>
         <button class="btn btn--icon btn--primary glass" id="tweak-send" type="submit" aria-label="Өзгерту"><svg class="ico"><use href="#i-spark"/></svg></button>
       </form>
     </div>
@@ -208,7 +205,6 @@
 <script src="js/result.js"></script>
 <script src="js/sheets.js"></script>
 <script src="js/gallery.js"></script>
-<script src="js/mic.js"></script>
 <script src="js/share.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/chats.js"></script>

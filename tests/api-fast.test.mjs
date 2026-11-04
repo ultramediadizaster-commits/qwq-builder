@@ -27,6 +27,10 @@ const server = http.createServer((req, res) => {
     if (act === "hang") return;                       // тақырып жіберілді, токен жоқ
     if (act.startsWith("slow:")) return setTimeout(() => { send("Кеш жауап."); res.end("data: [DONE]\n\n"); }, +act.slice(5));
     if (act === "stall-mid") { send("Бірінші бөлік. "); return; }   // токен келді, одан кейін үнсіз
+    const W = "⚠️ Интернеттен іздеу қазір қолжетімсіз — жауап менің өз білімімнен, соңғы деректер болмауы мүмкін.";
+    if (act === "notice-tail") { send("Сәлем! Бұл жауап."); send("\n\n⚠️ Интер"); send("неттен іздеу қазір қолжетімсіз — жауап менің өз білімімнен, соңғы деректер болмауы мүмкін."); return res.end("data: [DONE]\n\n"); }
+    if (act === "notice-head") { send(W + "\n\n"); send("Нақты жауап осы."); return res.end("data: [DONE]\n\n"); }
+    if (act === "notice-only") { send(W); return res.end("data: [DONE]\n\n"); }
     if (act === "long") { for (let i = 0; i < 40; i++) send("Бұл ұзын сөйлем нөмір " + i + ". "); return res.end("data: [DONE]\n\n"); }
     send("Сәлем! "); send("Бұл жауап."); res.end("data: [DONE]\n\n");
   });
@@ -74,4 +78,35 @@ test("ескі режим (qwq.fast=0): thinkingLevel жіберілмейді, 
     const r = await api.chat({ message: "x", agent: true, model: "gemini-3.5-flash-lite", models: api.CHAIN, thinkingLevel: "minimal" });
     assert.ok(r.answer); assert.strictEqual(seen[0].thinkingLevel, undefined); assert.strictEqual(seen[0].model, "gemini-3.5-flash-lite");
   } finally { localStorage.removeItem("qwq.fast"); }
+});
+
+test("Worker ескерту жолы (соңында, ағынмен бөлініп) пайдаланушыға көрінбейді", async () => {
+  behavior = () => "notice-tail";
+  const fulls = [];
+  const r = await api.chat({ message: "x", onDelta: (_, full) => fulls.push(full) });
+  assert.strictEqual(r.answer, "Сәлем! Бұл жауап.");
+  assert.ok(fulls.length && fulls.every((f) => !/⚠|Интер|қолжетімсіз/.test(f)), JSON.stringify(fulls));
+});
+test("Worker ескерту жолы жауаптың басында болса да алынып тасталады", async () => {
+  behavior = () => "notice-head";
+  const fulls = [];
+  const r = await api.chat({ message: "x", onDelta: (_, full) => fulls.push(full) });
+  assert.strictEqual(r.answer, "Нақты жауап осы.");
+  assert.ok(fulls.every((f) => !/қолжетімсіз/.test(f)));
+});
+test("жауап тек ескертуден тұрса — бос жауап ретінде қайталанады, ескерту көрсетілмейді", async () => {
+  behavior = (b, n) => (n === 1 ? "notice-only" : "ok");
+  const r = await api.chat({ message: "x", agent: true, models: api.CHAIN });
+  assert.strictEqual(r.answer, "Сәлем! Бұл жауап."); assert.strictEqual(seen.length, 2);
+});
+test("stripNotice: қалыпты «⚠️» мәтінін тиіспейді", () => {
+  assert.strictEqual(api.stripNotice("⚠️ Назар аудар: кілтті жаспа", true), "⚠️ Назар аудар: кілтті жаспа");
+  assert.strictEqual(api.stripNotice("Мәтін ⚠️ ортасында", true), "Мәтін ⚠️ ортасында");
+});
+test("Builder ешқашан web:true жібермейді: чат пен жылдам конвейер web:false; web:true тек ескі (qwq.fast=0) режимде", () => {
+  const read = (f) => readFileSync(join(here, "..", "js", f), "utf8");
+  assert.ok(!/web:\s*true/.test(read("chat.js")) && !/web:\s*true/.test(read("codegen.js")) && !/web:\s*true/.test(read("fix.js")) && !/web:\s*true/.test(read("websearch.js")));
+  const a = read("agent.js"), i = a.indexOf("web: true");
+  assert.ok(i > a.indexOf("if (Q.api.fast()) {", a.indexOf("const searchP")), "web:true жылдам тармақтан кейін тұр");
+  assert.strictEqual(a.split("web: true").length - 1, 1);
 });

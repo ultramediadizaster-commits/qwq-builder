@@ -105,7 +105,6 @@
     text = text.trim();
     if (!text || busy || !html()) return;
     if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
-    Q.mic.stop();
     busy = true; ctrl = new AbortController();
     if (ui.busy) { ui.busy.hidden = false; $("#busy-t").textContent = "Өзгертіп жатыр…"; }
     const setM = throttleRaf((n) => { const m = $("#busy-m"); if (m) m.textContent = `жазылды: ${fmtSize(n)}`; });
@@ -199,7 +198,6 @@ ${code}
     const parts = curParts();
     if (!parts) return tweakLegacy(text);            // ескі чаттар: бөлшектері жоқ — толық қайта жазу
     if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
-    Q.mic.stop();
     busy = true; ctrl = new AbortController(); hideDiff();
     if (ui.busy) { ui.busy.hidden = false; $("#busy-t").textContent = "Тек керекті жерін өзгертіп жатыр…"; $("#busy-m").textContent = ""; }
     const sig = ctrl.signal, meta = S.data.meta || {}, title = (S.data.idea && S.data.idea.title) || "Қосымша";
@@ -283,7 +281,6 @@ ${code}
     const t = $("#tweak");
     const fitT = () => { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 132) + "px"; };
     t.addEventListener("input", fitT);
-    Q.mic.attach(t, $("#tweak-mic"), fitT);
     t.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !Q.coarse && !e.isComposing) { e.preventDefault(); tweak(t.value); } });
     render();
   }

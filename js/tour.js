@@ -64,7 +64,7 @@
     Q.go(o.view || "chat");
   }
 
-  /* ---------- дыбыс: алдын ала жүктеу (11 MP3 + VTT) ---------- */
+  /* ---------- дыбыс: алдын ала жүктеу (10 MP3 + VTT) ---------- */
   const PRE = { mp3: [], vtt: [] };   // беттің өмір бойы сақталады: қайта көргенде қайта жүктелмейді
   function preload() {
     STEPS.forEach((_, i) => {
@@ -386,7 +386,7 @@
     d.innerHTML = `<div class="sheet glass glass--dark">
       <img src="images/robot/wave.webp" alt="" width="120" height="120">
       <h2 id="qa-t">Сәлем! QWQ Құрастырды бұрын қолдандыңыз ба?</h2>
-      <p>Жаңадан бастасаңыз, мен бәрін 11 қысқа қадаммен көрсетіп шығамын.</p>
+      <p>Жаңадан бастасаңыз, мен бәрін 10 қысқа қадаммен көрсетіп шығамын.</p>
       <button class="btn btn--primary glass" id="qa-new" type="button">Жаңадан бастаймын — көрсетіңіз</button>
       <button class="btn glass glass--flat" id="qa-know" type="button">Бұрыннан қолданамын</button></div>`;
     document.body.appendChild(d);

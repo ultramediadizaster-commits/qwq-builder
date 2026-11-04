@@ -68,7 +68,7 @@
     text = (text || "").trim();
     if (!text || busy) return;
     if (!S.key && !(Q.demo && Q.demo.active)) { toast("API кілті керек.", "err"); Q.openSettings(); return; }
-    Q.mic.stop(); input.value = ""; fit();
+    input.value = ""; fit();
     const history = S.data.messages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
     S.data.messages.push({ role: "user", content: text });
     $("#hero").hidden = true;
@@ -120,7 +120,6 @@
   }
 
   function init() {
-    Q.mic.attach($("#input"), $("#mic"), fit);
     $("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
     sendBtn.addEventListener("click", () => { if (busy && ctrl) ctrl.abort(); });
     msgsEl.addEventListener("click", (e) => {

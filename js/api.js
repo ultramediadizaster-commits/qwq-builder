@@ -48,6 +48,18 @@
     return m && m[0].length > t.length * 0.6 ? m[0].trimEnd() : t.trimEnd();
   }
 
+  /** Worker кейде «⚠️ Интернеттен іздеу қазір қолжетімсіз…» жолын жауапқа өзі қосады (басында не соңында) — пайдаланушы оны көрмейді.
+   *  final=false (ағын): жолдың әлі толық келмеген басын да (мысалы «⚠️ Интер») уақытша жасырады */
+  const NOTICE = "Интернеттен іздеу қазір қолжетімсіз";
+  function stripNotice(t, final) {
+    t = String(t || "").replace(/(?:^|\n+)[ \t]*⚠️?[ \t]*Интернеттен іздеу қазір қолжетімсіз[^\n]*/g, "");
+    if (!final) {
+      const m = t.match(/(?:^|\n+)[ \t]*(⚠️?[ \t]*[^\n]*)$/);
+      if (m && /^⚠️?[ \t]*(.*)$/.test(m[1]) && NOTICE.startsWith(m[1].replace(/^⚠️?[ \t]*/, ""))) t = t.slice(0, m.index);
+    }
+    return final ? t.trim() : t.replace(/^\s+/, "");
+  }
+
   /** Бір әрекет */
   async function once(o) {
     const S = Q.store;
@@ -147,8 +159,12 @@
     const max = o.tries || (F ? 6 : MAX_TRIES);     // міндетті емес сұраулар (мысалы, іздеу) үшін азырақ әрекет
     const chain = F && o.models && o.models.length ? o.models : null;
     for (let i = 0; i < max; i++) {
-      const oi = chain ? Object.assign({}, o, { model: chain[Math.min(i, chain.length - 1)] }) : o;
-      try { const t0 = performance.now(); const r = await once(oi); Q.demo && Q.demo.record && Q.demo.record(o, r, performance.now() - t0); return r; }
+      const oi = chain ? Object.assign({}, o, { model: chain[Math.min(i, chain.length - 1)] }) : Object.assign({}, o);
+      if (o.onDelta) {   // ескерту жолы ағында да көрінбейді
+        let shown = "";
+        oi.onDelta = (d, full) => { const c = stripNotice(full, false); if (c.startsWith(shown)) { if (c.length > shown.length) o.onDelta(c.slice(shown.length), c); } else o.onDelta("", c); shown = c; };
+      }
+      try { const t0 = performance.now(); const r = await once(oi); if (r && r.answer) { r.answer = stripNotice(r.answer, true); if (!r.answer) throw new QErr("QWQ бос жауап қайтарды.", "empty", true); } Q.demo && Q.demo.record && Q.demo.record(o, r, performance.now() - t0); return r; }
       catch (e) {
         if (!(e instanceof QErr)) throw e;
         last = e;
@@ -186,5 +202,5 @@
     try { return JSON.parse(t.slice(a, b + 1).replace(/,\s*([}\]])/g, "$1").replace(/[\u0000-\u001f]+/g, " ")); } catch (e) { return null; }
   }
 
-  Q.api = { chat, extractIdea, QErr, parseJSON, fast, CHAIN };
+  Q.api = { chat, extractIdea, QErr, parseJSON, fast, CHAIN, stripNotice };
 })(window.QWQ);
