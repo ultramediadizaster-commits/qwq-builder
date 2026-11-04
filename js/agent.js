@@ -55,6 +55,7 @@
       <article class="card glass">
         <h2>${esc(idea.title)}</h2>
         <p class="sum">${esc(idea.summary)}</p>
+        ${(idea.decisions || []).length ? `<div class="decisions"><span class="eyebrow">Чаттағы шешімдер</span><ul>${idea.decisions.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
         <button class="toggle-prompt" type="button" id="tp" aria-expanded="false" aria-controls="pbox">Толық промпт ${ic("chev", "ico ico--sm")}</button>
         <textarea class="prompt-box" id="pbox" hidden aria-label="Толық промпт"></textarea>
         <div class="row">

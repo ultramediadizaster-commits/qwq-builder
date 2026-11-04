@@ -363,3 +363,7 @@
 .qchip.on{color:#fff;background:linear-gradient(135deg,rgba(90,169,255,.55),rgba(164,123,255,.5));border-color:rgba(255,255,255,.3);box-shadow:0 4px 18px rgba(90,169,255,.3)}
 .qchip:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .q-go{display:flex;justify-content:center;margin-top:6px}
+/* ---------- Чат: нұсқа чиптері және промпт картасындағы шешімдер ---------- */
+.opt-row{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 14px}
+.decisions{margin:12px 0 4px}
+.decisions ul{margin:6px 0 0;padding-left:20px;color:var(--text-2);font-size:14px;display:grid;gap:3px}

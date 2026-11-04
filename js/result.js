@@ -131,7 +131,7 @@ ${code.slice(-1500)}`,
         if (!Q.code.complete(code)) throw new Q.api.QErr("Өзгертілген код толық келмеді, ескі нұсқа сақталды. Өтінішті қысқартып қайта жазып көр.", "incomplete");
         return code;
       };
-      let code = await gen(`Төменде жұмыс істеп тұрған веб-қосымшаның толық коды берілген. Оны мына өтініш бойынша өзгерт: «${text}».
+      let code = await gen(`ЖОБА КОНТЕКСТІ (чаттағы талаптар мен шешімдер — бұзба):\n${Q.chat.context(3000)}\n\nТөменде жұмыс істеп тұрған веб-қосымшаның толық коды берілген. Оны мына өтініш бойынша өзгерт: «${text}».
 Есептің басқа бөлігін бұзба, интерфейс тілі қазақша қалсын. Жауапта ТЕК толық жаңартылған index.html кодын бір \`\`\`html блогымен қайтар, түсініктеме жазба.
 
 \`\`\`html
@@ -203,7 +203,7 @@ ${code}
     const sig = ctrl.signal, meta = S.data.meta || {}, title = (S.data.idea && S.data.idea.title) || "Қосымша";
     const prevIdx = verIdx();                         // бақылау нүктесі: қазіргі нұсқа версиялар тізімінде тұр
     try {
-      let res = await Q.codegen.edit({ request: text, title, meta, sig, ...parts });
+      let res = await Q.codegen.edit({ request: text, title, meta, sig, context: Q.chat.context(), ...parts });
       if (!res || res.error) throw new Q.api.QErr("Бұл өтінішті дәл өзгерте алмадым. Басқаша, нақтырақ жазып көр. Ескі нұсқа сақталды.", "nopatch");
       $("#busy-t").textContent = "Тексеріп жатыр…";
       let chk = await Q.check.run(res.html), tries = 0;
