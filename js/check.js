@@ -10,13 +10,14 @@ var errs=[],ctx=null,dlg=0,mut=0,lsw=0,scr=0;
 try{var _si=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(){scr++;try{return _si.apply(this,arguments)}catch(e){}};["scrollTo","scrollBy","scroll"].forEach(function(k){var f=window[k];window[k]=function(){scr++;try{return f.apply(window,arguments)}catch(e){}}})}catch(e){}
 function err(m){errs.push({m:String(m).slice(0,260),ctx:ctx})}
 /* ағылшын мәтін: көрінетін мәтін, placeholder/aria-label/title/value және alert хабарларындағы латын сөздері (қысқартулар мен өлшем бірліктері есептелмейді) */
-var eng={},engN=0,OKW=/^(QWQ|HTML|CSS|JS|API|URL|ID|QR|PDF|SVG|PNG|JPG|GPS|USB|WiFi|Wi|Fi|IT|AI|km|kg|cm|mm|ml|px|ms|Hz|KZT|USD|EUR|RUB|[IVXLC]+|[xyzab])$/;
+var eng={},engN=0,OKW=/^(QWQ|HTML|CSS|JS|API|URL|ID|QR|PDF|SVG|PNG|JPG|GPS|USB|WiFi|Wi|Fi|IT|AI|km|kg|cm|mm|ml|px|ms|Hz|KZT|USD|EUR|RUB|txt|csv|json|xlsx?|docx?|mp3|jpe?g|[IVXLC]+|[xyzab])$/;
 function engStr(t){if(!t||engN>40)return;String(t).replace(/(?:https?:\/\/|www\.)\S+|\S+@\S+/g," ").replace(/[A-Za-z][A-Za-z'’]*(?:[ -][A-Za-z][A-Za-z'’]*)*/g,function(p){var ws=p.split(/[ -]/).filter(function(w){return w.length>1&&!OKW.test(w)});if(ws.length&&!eng[p]){eng[p]=1;engN++}return p})}
 function engScan(){try{var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),t;while(t=w.nextNode()){var p=t.parentElement;if(!p||/^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE|KBD|TEXTAREA)$/.test(p.tagName)||!vis(p))continue;engStr(t.nodeValue)}
 [].forEach.call(document.querySelectorAll("[placeholder],[aria-label],[title],input[type=button],input[type=submit]"),function(el){if(!vis(el))return;engStr(el.getAttribute("placeholder"));engStr(el.getAttribute("aria-label"));engStr(el.getAttribute("title"));if(el.tagName==="INPUT")engStr(el.value)});engStr(document.title)}catch(e){}}
 W.addEventListener("error",function(e){err((e.message||"Қате")+(e.lineno?" (жол "+e.lineno+")":""))});
 W.addEventListener("unhandledrejection",function(e){var r=e.reason;err("Promise: "+(r&&r.message||r))});
 var ce=console.error;console.error=function(){err("console.error: "+[].slice.call(arguments).join(" "));try{ce.apply(console,arguments)}catch(x){}};
+try{var _ic=HTMLInputElement.prototype.click;HTMLInputElement.prototype.click=function(){if(this.type==="file"){dlg++;return}return _ic.apply(this,arguments)}}catch(e){}   /* файл таңдау терезесін ашу — заңды әрекет (тексерісте терезе ашылмайды) */
 W.alert=function(m){dlg++;engStr(m)};W.confirm=function(m){dlg++;engStr(m);return true};W.prompt=function(m){dlg++;engStr(m);return "Тест"};W.open=function(){dlg++;return null};
 /* өңдегіштерді бақылау */
 var L=new WeakMap(),add=EventTarget.prototype.addEventListener;
@@ -161,7 +162,7 @@ if(document.readyState==="complete")setTimeout(start,350);else W.addEventListene
     return r;
   }
   function run1(html) {
-    const demo = Q.demo && Q.demo.active;
+    const demo = Q.demo && Q.demo.mock();   // жазба ойнатылғанда — нақты жүрістегідей толық тексеріс
     const budget = demo ? 2500 : 7000, wait = demo ? 60 : 110, limit = budget + (demo ? 2500 : 6000);
     return new Promise((resolve) => {
       const id = ++seq;

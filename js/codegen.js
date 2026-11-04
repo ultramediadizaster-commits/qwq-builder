@@ -140,7 +140,7 @@ ${pa.css.slice(0, 3000)}`;
       const raw = await collect(prompt(o), (t) => Q.template.parse(t).end, "===CSS===, ===JS===", live);
       p = Q.template.parse(raw);
       const min = (game ? MIN_GAME : MIN_TOTAL) * (Q.api.fast() ? 0.7 : 1);   // жылдам режимде екінші толық жазуды тек шын шағын демо үшін жасаймыз
-      if ((game ? p.js.length : p.body.length + p.css.length + p.js.length) < min && !(Q.demo && Q.demo.active)) {
+      if ((game ? p.js.length : p.body.length + p.css.length + p.js.length) < min && !(Q.demo && Q.demo.mock())) {
         o.onStage && o.onStage("кеңейту");
         const again = await call(prompt(o) + `\n\nЕСКЕРТУ: алдыңғы жауап тым қысқа болды. Бұл шағын демо емес, толыққанды өнім: көп мазмұн, толық логика жаз.`, { onDelta: (_, full) => live(full) });
         const p2 = Q.template.parse(again.answer);

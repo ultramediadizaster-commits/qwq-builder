@@ -166,7 +166,7 @@
       const picked = S.data.messages.filter((m) => m.role === "user" && /^Мен \d+-нұсқаны таңдадым/.test(m.content)).map((m) => "Таңдалған нұсқа: " + (m.content.match(/«([^»]+)»/) || [, m.content])[1]);
       idea.decisions = [...new Set([...(idea.decisions || []), ...picked])].slice(0, 12);
       if (idea.decisions.length) idea.prompt += `\n\nЧАТТАҒЫ ШЕШІМДЕР МЕН ТАҢДАУЛАР (міндетті түрде ұстан):\n${idea.decisions.map((x) => "- " + x).join("\n")}`;
-      if (qs.length && !(Q.demo && Q.demo.active)) { btn.closest(".make-row").remove(); askQuestions(idea, qs); return; }
+      if (qs.length && !(Q.demo && Q.demo.mock())) { btn.closest(".make-row").remove(); askQuestions(idea, qs); return; }
       startIdea(idea, false);
     } catch (e) {
       toast(e.message || "Идеяны қорытындылау мүмкін болмады.", "err");
@@ -177,6 +177,7 @@
   function startIdea(idea, auto) {
     S.data.idea = idea; S.data.files = {}; S.data.versions = [];
     S.save();
+    makeRow();                       // «Кодқа өту» батырмасы «Күте тұр…» күйінде қалмасын
     Q.code.render();
     Q.go("code");
     if (auto) Q.code.run();

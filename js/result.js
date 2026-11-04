@@ -206,16 +206,21 @@ ${code}
       let res = await Q.codegen.edit({ request: text, title, meta, sig, context: Q.chat.context(), ...parts });
       if (!res || res.error) throw new Q.api.QErr("Бұл өтінішті дәл өзгерте алмадым. Басқаша, нақтырақ жазып көр. Ескі нұсқа сақталды.", "nopatch");
       $("#busy-t").textContent = "Тексеріп жатыр…";
+      // тек ЖАҢА ақаулар өзгерістің кінәсі: бастапқы нұсқада бұрыннан болғандары өзгертуді бұғаттамайды
+      const ikey = (x) => x.split(" — ")[0].slice(0, 90);
+      const base = new Set((S.data.lastLeft || (S.data.report && S.data.report.left) || []).map(ikey));
+      const fresh = (c) => c.issues.filter((x) => !base.has(ikey(x)));
       let chk = await Q.check.run(res.html), tries = 0;
-      while (chk.issues.length && tries < 2) {
+      while (fresh(chk).length && tries < 2) {
         tries++;
         $("#busy-t").textContent = `Түзетіп жатыр… (${tries}/2)`;
-        const fx = chk.issues.some(Q.codegen.isRenderIssue) ? null : await Q.codegen.fixJs({ title, body: res.body, css: res.css, js: res.js, errors: chk.issues, sig, meta });
+        const fx = fresh(chk).some(Q.codegen.isRenderIssue) ? null : await Q.codegen.fixJs({ title, body: res.body, css: res.css, js: res.js, errors: fresh(chk), sig, meta });
         if (!fx) break;
         res = Object.assign(res, { body: fx.body, js: fx.js, html: fx.html });
         chk = await Q.check.run(res.html);
       }
-      if (chk.issues.length) throw new Q.api.QErr("Өзгеріс қосымшаны бұзды, сондықтан қолданылмады. Ескі нұсқа сақталды.", "broken");
+      S.data.lastLeft = chk.issues;
+      if (fresh(chk).length) throw new Q.api.QErr("Өзгеріс қосымшаны бұзды, сондықтан қолданылмады. Ескі нұсқа сақталды.", "broken");
       S.data.versions.push({ html: res.html, body: res.body, css: res.css, js: res.js, note: text, t: Date.now() });
       S.data.versions = S.data.versions.slice(-20);
       S.data.verIdx = S.data.versions.length - 1;

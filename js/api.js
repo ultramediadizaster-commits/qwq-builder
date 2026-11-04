@@ -191,7 +191,7 @@ questions — код жазбас бұрын қолданушыға қойыла
         const p = Array.isArray(j.prompt) ? j.prompt.join("\n") : typeof j.prompt === "object" ? JSON.stringify(j.prompt, null, 2) : String(j.prompt);
         // нақтылау сұрақтары: ең көбі 4, әрқайсысында 2–4 нұсқа («Өзің шеш» клиентте қосылады)
         const questions = (Array.isArray(j.questions) ? j.questions : [])
-          .map((x) => ({ q: String((x && x.q) || "").trim().slice(0, 80), options: (Array.isArray(x && x.options) ? x.options : []).map((v) => String(v).trim().slice(0, 40)).filter((v) => v && !/^өзің шеш/i.test(v)).slice(0, 4) }))
+          .map((x) => ({ q: String((x && x.q) || "").trim().replace(/\s*:+\s*$/, "").slice(0, 80), options: (Array.isArray(x && x.options) ? x.options : []).map((v) => String(v).trim().slice(0, 40)).filter((v) => v && !/^өзің шеш/i.test(v)).slice(0, 4) }))
           .filter((x) => x.q && x.options.length >= 2).slice(0, 4);
         // чаттағы шешімдер (стиль, мүмкіндіктер, аудитория, таңдалған нұсқа) — промпт картасында көрінеді
         const decisions = (Array.isArray(j.decisions) ? j.decisions : []).map((x) => String(x).trim().slice(0, 120)).filter(Boolean).slice(0, 10);

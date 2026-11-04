@@ -69,6 +69,8 @@ show();renderHist();`;
   const replayIdx = {};
   const D = {
     active: (() => { try { return localStorage.getItem("qwq.demo") === "1"; } catch (e) { return false; } })(),
+    /** Ішкі (қолмен жазылған) сценарий ойнай ма: жазба болса — жоқ, демо нақты жүрістей жүреді (толық тексеріс, сұрақтар, жақсарту) */
+    mock: () => D.active && !(window.QWQ_RECORDING && window.QWQ_RECORDING.code && window.QWQ_RECORDING.code.length),
 
     /** Сұрау түрін анықтау (жазу мен ойнату үшін ортақ) */
     kind(m, o) {
@@ -176,18 +178,39 @@ window.QWQ_RECORDING = ${d};
       try {
         S.reset(); Q.chat.renderAll(); Q.code.render(); Q.result.refresh(); Q.go("chat");
         await sleep(700);
-        const inp = $("#input"), txt = "Қазақша сөздерді жаттауға арналған қосымша жасағым келеді";
-        for (let i = 1; i <= txt.length && live(); i++) { inp.value = txt.slice(0, i); inp.dispatchEvent(new Event("input")); await sleep(32); }
+        const SC = (window.QWQ_RECORDING && window.QWQ_RECORDING.script) || {};      // жазбадағы сценарий: промпт, сұрақ жауаптары, өзгерту
+        const inp = $("#input"), txt = SC.prompt || "Қазақша сөздерді жаттауға арналған қосымша жасағым келеді";
+        const tstep = Math.max(1, Math.ceil(txt.length / 90));   // ұзын промпт та ~3 с ішінде теріледі
+        for (let i = tstep; i < txt.length + tstep && live(); i += tstep) { inp.value = txt.slice(0, i); inp.dispatchEvent(new Event("input")); await sleep(32); }
         await sleep(300);
         await Q.chat.send(txt);
         await sleep(900);
+        // жазбада нұсқа таңдауы болса: сол чипті басамыз (агент таңдауды бүкіл тарихпен жалғастырады)
+        if (SC.chip) {
+          const ch = [...document.querySelectorAll(".opt-row .qchip")][SC.chip - 1];
+          if (ch && live()) { await sleep(900); ch.click(); await sleep(300); await wait(() => !Q.chat.isBusy()); await sleep(1200); }
+        }
         const mk = $("#make"); if (!live() || !mk) return; mk.click();
-        await wait(() => Q.view === "code"); await sleep(900);
-        const go = $("#go-agent"); if (!live() || !go) return; go.click();
+        await wait(() => Q.view === "code" || !!$(".qcard"));
+        const qc = $(".qcard");
+        if (qc) {
+          // нақтылау сұрақтары: жазбадағы жауаптарды бір-бірлеп басамыз, сосын «Код жазуды бастау» (агент өзі іске қосылады)
+          await sleep(1200);
+          for (const row of qc.querySelectorAll(".q-row")) {
+            const want = (SC.picks || {})[row.querySelector(".q-t").textContent];
+            const b = [...row.querySelectorAll(".qchip")].find((x) => x.textContent === want);
+            if (b && live()) { b.click(); await sleep(700); }
+          }
+          await sleep(600); const st = qc.querySelector(".q-go .btn"); if (!live() || !st) return; st.click();
+          await wait(() => Q.view === "code");
+        } else {
+          await sleep(900);
+          const go = $("#go-agent"); if (!live() || !go) return; go.click();
+        }
         await wait(() => S.data.versions.length > 0);
         await sleep(1400); if (!live()) return;
         Q.go("result"); await sleep(1800);
-        const tw = $("#tweak"), cmd = "түсін қызғылт ет";
+        const tw = $("#tweak"), cmd = SC.tweak || "түсін қызғылт ет";
         for (let i = 1; i <= cmd.length && live(); i++) { tw.value = cmd.slice(0, i); tw.dispatchEvent(new Event("input")); await sleep(45); }
         await sleep(300);
         if (live()) await Q.result.tweak(cmd);

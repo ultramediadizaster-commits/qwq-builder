@@ -302,7 +302,7 @@
     setRunUI(true);
     STEPS.forEach((s) => setStep(s.k, "", s.d));
     R.ui.steps.querySelectorAll(".s-time").forEach((e) => (e.textContent = ""));
-    S.data.agent = null; S.data.share = null; S.data.report = null;
+    S.data.agent = null; S.data.share = null; S.data.report = null; S.data.lastLeft = null;
     R.t0 = performance.now();
     R.tick = setInterval(() => { R.ui.timer && (R.ui.timer.textContent = fmtTime(performance.now() - R.t0)); }, 100);
     R.ui.card.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -430,7 +430,7 @@
       /* 4. Тексеру: батырмаларды нақты басып көру + AI тексеруі, ақауларды түзету */
       cur = "verify";
       // жылдам режим: «жақсарту» тексерумен ПАРАЛЛЕЛЬ жүреді (екеуі де бастапқы кодқа қарайды); нәтиже тек тексеру түзетпеген болса алынады
-      const impP = Q.api.fast() && !(Q.demo && Q.demo.active)
+      const impP = Q.api.fast() && !(Q.demo && Q.demo.mock())
         ? Q.codegen.improve({ title: idea.title, body: out.body, css: out.css || "", js: out.js, meta, sig }).catch((e) => { if (e.code === "abort") throw e; return null; }) : null;
       if (impP) impP.catch(() => {});
       const fin = await verify(out, T, sig);
@@ -439,7 +439,7 @@
 
       /* 4б. Жақсарту: сапа тізімімен тексеру (1 айналым), патчтармен; бұзса — қайтарылады */
       cur = "improve";
-      if (!fin.blank && !(Q.demo && Q.demo.active)) {
+      if (!fin.blank && !(Q.demo && Q.demo.mock())) {
         setStep("improve", "active", "Сапа тізімімен тексеріп жатыр…");
         const endImp = T.begin("жақсарту");
         try {
