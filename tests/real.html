@@ -52,7 +52,9 @@ document.getElementById("mem").onclick = async () => {
   d.querySelector("#make").click();
   for (let i = 0; i < 200 && !d.querySelector(".qcard") && Q.view !== "code"; i++) await wait(150);
   if (d.querySelector(".qcard")) { out.textContent += `  нақтылау сұрақтары: ${[...d.querySelectorAll(".q-t")].map((x) => x.textContent).join(" | ")}\n`; d.querySelector(".q-go .btn").click(); }
-  for (let i = 0; i < 100 && !Q.code.isRunning(); i++) await wait(100);
+  for (let i = 0; i < 30 && !Q.code.isRunning(); i++) await wait(100);
+  if (!Q.code.isRunning() && d.querySelector("#go-agent")) d.querySelector("#go-agent").click();   // сұрақсыз жағдайда агент Код бетінен қолмен іске қосылады
+  for (let i = 0; i < 50 && !Q.code.isRunning(); i++) await wait(100);
   const idea = Q.store.data.idea || {};
   out.textContent += `  шешімдер: ${(idea.decisions || []).join(" | ")}\n  промптта таңдау: ${idea.prompt.includes(pick)}, «3-сынып»: ${/3[- ]?сынып/i.test(idea.prompt)}, «жасыл»: ${/жасыл/i.test(idea.prompt)}\n  агент жұмыс істеп жатыр…\n`;
   const ta = performance.now(); while (Q.code.isRunning()) await wait(500);
