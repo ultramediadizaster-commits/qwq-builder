@@ -6,6 +6,7 @@
   const msgsEl = $("#msgs"), input = $("#input"), sendBtn = $("#send");
 
   // QWQ-ге әр чат сұрауымен жіберілетін пішім нұсқауы
+  const BRIEF = "Сен QWQ Builder көмекшісісің: қолданушының қосымша идеясын нақтылауға көмектесесің. Қазақша жауап бер, ЕҢ КӨБІ 6 сөйлем, қысқа әрі нақты.\n\n";
   const FORMAT = "\n\n(Жауабыңды markdown пішімінде жаз: қысқа абзацтар, керек жерде тізім мен **қалың** сөздер, абзацтардың арасында бос жол қалдыр.)";
   const raw = new WeakMap();
 
@@ -80,7 +81,9 @@
     let got = "";
     const paint = throttleRaf((full) => { paintAI(ai, full); scrollEnd(false); });
     try {
-      const r = await Q.api.chat({ message: text + FORMAT, history, web: false, stream: true, signal: ctrl.signal, onDelta: (_, full) => { got = full; paint(full); } });
+      // Жылдам чат: ең жылдам модель, ойлау минимум, қысқа жауап; 12 с-та бірінші сөз келмесе — келесі модельмен бірден
+      const quick = Q.api.fast() ? { agent: true, models: Q.api.CHAIN, thinkingLevel: "minimal", maxChars: 1800, firstMs: 12000 } : {};
+      const r = await Q.api.chat({ message: (quick.agent ? BRIEF : "") + text + FORMAT, history: quick.agent ? history.slice(-8) : history, web: false, stream: true, signal: ctrl.signal, ...quick, onDelta: (_, full) => { got = full; paint(full); } });
       paint.cancel(); paintAI(ai, r.answer); acts(ai, r.answer, "ai");
       S.data.messages.push({ role: "assistant", content: r.answer });
       if (r.partial) toast("Жауап толық келмей үзілді, бірақ келгені сақталды.", "err");

@@ -80,7 +80,7 @@ ${list}
       const kw = keywords(idea);
       const title = String(idea.title || "").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
       const pairs = kw.slice(0, 4).map((w, i) => (kw[i + 1] ? w + " " + kw[i + 1] : "")).filter(Boolean).slice(0, 3);
-      const ai = await aiQueries(idea, ac.signal);
+      const ai = o.fast ? null : await aiQueries(idea, ac.signal);   // fast: Gemini шақырусыз, эвристика ғана
       const qs0 = ai ? ai : [...new Set([title, ...pairs, ...kw.filter((w) => w.length > 5).slice(0, 2)].filter(Boolean))].slice(0, 5);
       // Wikipedia барлық сөзді талап етеді: әр сұрауға оның ұзын жеке сөздерін де қосамыз (сүзгіні Gemini жасайды)
       const qs = [...new Set(ai ? qs0.flatMap((q) => [q, ...q.split(" ").filter((w) => w.length > 4).slice(0, 2)]) : qs0)].slice(0, 8);
@@ -96,7 +96,7 @@ ${list}
       for (const h of hits) if (!seen.has(h.url) && pick.filter((x) => x.lang === h.lang).length < 2) { seen.add(h.url); pick.push(h); }
       // Jina Reader арқылы табылған беттерді оқу (табылмаса, Wikipedia үзіндісі қалады)
       // тақырыпқа сай келмейтін беттерді тастаймыз (Gemini; ол жауап бермесе — сөз сәйкестігі бойынша)
-      const keep = await aiFilter(idea, pick, ac.signal);
+      const keep = o.fast ? null : await aiFilter(idea, pick, ac.signal);
       Q.websearch.last = { queries: qs, candidates: pick.map((p) => p.title), keep };
       const rel = keep ? pick.filter((_, i) => keep.includes(i)) : pick.filter((h) => sc(h) > 0);
       pick.length = 0; pick.push(...rel);
@@ -104,7 +104,7 @@ ${list}
       // Jina — қосымша: өз 6 с шегі бар, баяу болса Wikipedia үзіндісі қалады
       const jac = new AbortController(), jt = setTimeout(() => jac.abort(), 6000);
       ac.signal.addEventListener("abort", () => jac.abort(), { once: true });
-      const full = await Promise.allSettled(pick.map((p) => read(p.url, jac.signal)));
+      const full = o.fast ? pick.map(() => ({ status: "rejected" })) : await Promise.allSettled(pick.map((p) => read(p.url, jac.signal)));   // fast: Wikipedia үзіндісі жеткілікті
       clearTimeout(jt);
       let nRead = 0;
       pick.forEach((p, i) => { if (full[i].status === "fulfilled" && full[i].value.length > p.text.length) { p.text = full[i].value; p.jina = true; nRead++; } });

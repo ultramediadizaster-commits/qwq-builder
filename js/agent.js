@@ -251,9 +251,10 @@
       if (!issues.length) break;
       setStep("verify", "active", text);
       showIssues(issues);
-      if (fixes >= 3) break;
+      // жылдам режим: бір түзету айналымы (тек бос бет/көрінбейтін экран болса — екі), ескі режимде — үш
+      if (fixes >= (Q.api.fast() ? (issues.some(Q.codegen.isRenderIssue) ? 2 : 1) : 3)) break;
       fixes++;
-      await Q.sleep(700);
+      if (!Q.api.fast()) await Q.sleep(700);
       setStep("verify", "active", `Түзетіп жатыр… (${fixes}/3)`);
       const endFix = T.begin(`түзету ${fixes}`);
       let fx = null;
@@ -284,6 +285,10 @@
     return { html: best.html, body: best.body, css: best.css, js: best.js, fixes, left, report, blank, chk };
   }
 
+  // Іздеу тек нақты деректер/ережелер керек тақырыптарға; ойын, құрал, лендингтерге керек емес
+  const FACT = /курс|валют|ауа райы|погод|рецепт|калори|тарих|истори|ереже|заң|формул|статистик|жаңалық|новост|нарық|ипотек|несие|кредит|салық|налог|футбол|география|планета|ғарыш|дәрі|ауру|денсаулық|сөздік|энциклопед|анықтамалық|тест|викторин|емтихан|ұлттық|салт|мақал/i;
+  const searchNeeded = (idea, type) => type !== "game" && FACT.test(`${idea.title} ${idea.summary} ${idea.prompt}`);
+
   async function run() {
     const idea = S.data.idea;
     if (!idea || R.active) return;
@@ -306,7 +311,7 @@
     const type = Q.styles.classify(idea.title + " " + idea.summary) !== "app" ? Q.styles.classify(idea.title + " " + idea.summary) : Q.styles.classify(idea.prompt);
     const st = Q.styles.pick(type, idea.style);
     const meta = S.data.meta = { type, style: st.id };
-    const split = type !== "game" && (type === "dashboard" || idea.prompt.length > 1300);
+    const split = type !== "game" && (Q.api.fast() ? idea.prompt.length > (type === "dashboard" ? 1800 : 2400) : (type === "dashboard" || idea.prompt.length > 1300));   // кезекпен жазу = 2 тізбекті сұрау, сондықтан жылдам режимде тек шынымен үлкен жобаға
     S.save();
     try {
       /* 1+2. Жоспар және интернеттен іздеу ПАРАЛЛЕЛЬ */
@@ -316,7 +321,7 @@
         const end = T.begin("жоспар");
         const tick = throttleRaf((_, full) => setStep("plan", "active", `Жазылды: ${full.length} таңба`));
         const p = await Q.api.chat({
-          signal: sig, web: false, stream: true, agent: true, model: Q.codegen.PLAN_MODEL, thinking: "low",
+          signal: sig, web: false, stream: true, ...Q.codegen.route("low", Q.codegen.PLAN_MODEL), ...(Q.api.fast() ? { maxChars: 3200 } : {}),
           message: `Сен тәжірибелі веб-әзірлеушісің. Мына қосымша үшін қысқа әзірлеу жоспарын жаса.\n\n${brief(idea)}\n\nЖауапты қазақша, Markdown пішімінде бер, 30 жолдан аспасын. Бөлімдер: ## Мақсат, ## Экрандар, ## Негізгі функциялар, ## Деректер (localStorage), ## Дизайн (түстер, көңіл-күй). Код жазба. Қысқа абзацтар мен тізімдер қолдан, абзацтардың арасында бос жол қалдыр.`,
           onDelta: tick,
         });
@@ -327,6 +332,27 @@
       })();
       const searchP = (async () => {
         const end = T.begin("іздеу");
+        if (Q.api.fast()) {
+          // Жылдам режим: қарапайым қосымшада іздеу жоқ; қажет болса — тек Wikipedia (Gemini-сіз), ең көбі 5 с, жоспармен қатар
+          const H = "# Жиналған мәлімет\n\n";
+          try {
+            if (!searchNeeded(idea, type)) {
+              S.data.files.info = H + "Қарапайым қосымша: сыртқы мәлімет керек емес, жоба жоспар бойынша жасалады.\n"; addFileRow("info");
+              setStep("search", "done", "Қажет емес — өткізілді");
+            } else {
+              setStep("search", "active", "Wikipedia…");
+              const fb = await Q.websearch.run(idea, { signal: sig, budget: 5000, fast: true });
+              if (fb) {
+                S.data.files.info = H + fb.text + "\n\n## Дереккөздер\n" + fb.sources.map((x) => `- [${x.title}](${x.url})`).join("\n") + "\n"; addFileRow("info");
+                setStep("search", "done", `${fb.sources.length} дереккөз: ${fb.sources.map((x) => x.title.replace(/ — Wikipedia$/, "")).slice(0, 3).join(", ")}`);
+              } else {
+                S.data.files.info = H + "Іздеу өткізілді, жоба жоспар бойынша жасалды.\n"; addFileRow("info");
+                setStep("search", "warn", "Іздеу өткізілді");
+              }
+            }
+          } finally { end(); }
+          return;
+        }
         // іздеу міндетті емес: 12 с-тан ұзаққа созылса (502, қайталау, үнсіздік), оны тоқтатып жалғастырамыз
         const sc = new AbortController(); let timedOut = false;
         const link = () => sc.abort(); sig.addEventListener("abort", link, { once: true });
@@ -403,6 +429,10 @@
 
       /* 4. Тексеру: батырмаларды нақты басып көру + AI тексеруі, ақауларды түзету */
       cur = "verify";
+      // жылдам режим: «жақсарту» тексерумен ПАРАЛЛЕЛЬ жүреді (екеуі де бастапқы кодқа қарайды); нәтиже тек тексеру түзетпеген болса алынады
+      const impP = Q.api.fast() && !(Q.demo && Q.demo.active)
+        ? Q.codegen.improve({ title: idea.title, body: out.body, css: out.css || "", js: out.js, meta, sig }).catch((e) => { if (e.code === "abort") throw e; return null; }) : null;
+      if (impP) impP.catch(() => {});
       const fin = await verify(out, T, sig);
       F.body = fin.body; F.css = fin.css; F.js = fin.js; F.html = fin.html; addFileRow("html"); F.css && addFileRow("css"); F.js && addFileRow("js");
       showMini(fin.html);
@@ -413,7 +443,7 @@
         setStep("improve", "active", "Сапа тізімімен тексеріп жатыр…");
         const endImp = T.begin("жақсарту");
         try {
-          const im = await Q.codegen.improve({ title: idea.title, body: fin.body, css: fin.css || "", js: fin.js, meta, sig });
+          const im = impP ? (fin.fixes ? null : await impP) : await Q.codegen.improve({ title: idea.title, body: fin.body, css: fin.css || "", js: fin.js, meta, sig });
           if (im) {
             setStep("improve", "active", `${im.applied} жақсарту қолданылды, тексеріп жатыр…`);
             const c2 = await Q.check.run(im.html);

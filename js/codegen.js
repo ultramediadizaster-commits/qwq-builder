@@ -4,6 +4,10 @@
   // Worker: agent:true + codeModels тізімінен модель → Gemini, жылдам әрі ұзын шығыс (8–16K токен)
   const CODE_MODEL = "gemini-3.5-flash-lite";
   const PLAN_MODEL = "gemini-3.1-flash-lite";
+  // Жылдам режимде: модель тізбегі (сәтсіздікте бірден келесісі) және ойлау деңгейі; ескі режимде — бір модель
+  const route = (lvl, first) => Q.api.fast()
+    ? { agent: true, models: [...new Set([first || CODE_MODEL, "gemini-3.1-flash-lite", "gemini-3.5-flash", CODE_MODEL])], thinkingLevel: lvl || "low" }
+    : { agent: true, model: first || CODE_MODEL };
   const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
   const syntaxOk = (js) => { try { new AsyncFn(js); return true; } catch (e) { return false; } };
 
@@ -107,7 +111,7 @@ ${tail}`;
    */
   async function write(o) {
     const meta = o.meta || {}, game = meta.type === "game";
-    const call = (message, extra) => Q.api.chat({ signal: o.sig, web: false, stream: true, agent: true, model: CODE_MODEL, thinking: "minimal", message, ...extra });
+    const call = (message, extra) => Q.api.chat({ signal: o.sig, web: false, stream: true, ...route(), message, ...extra });
     const build = (body, css, js) => Q.template.build(o.idea.title, body, css, js, meta);
     const preview = (text) => {
       const p = Q.template.parse(text);
@@ -157,7 +161,7 @@ ${pa.css.slice(0, 3000)}`;
     } else {
       const raw = await collect(prompt(o), (t) => Q.template.parse(t).end, "===CSS===, ===JS===", live);
       p = Q.template.parse(raw);
-      const min = game ? MIN_GAME : MIN_TOTAL;
+      const min = (game ? MIN_GAME : MIN_TOTAL) * (Q.api.fast() ? 0.7 : 1);   // жылдам режимде екінші толық жазуды тек шын шағын демо үшін жасаймыз
       if ((game ? p.js.length : p.body.length + p.js.length) < min && !(Q.demo && Q.demo.active)) {
         o.onStage && o.onStage("кеңейту");
         const again = await call(prompt(o) + `\n\nЕСКЕРТУ: алдыңғы жауап тым қысқа болды. Бұл шағын демо емес, толыққанды өнім: көп мазмұн, толық логика жаз.`, { onDelta: (_, full) => live(full) });
@@ -179,13 +183,13 @@ ${pa.css.slice(0, 3000)}`;
     const list = o.errors.map((x) => "- " + x).join("\n");
     const base = prompt({ brief: o.brief, plan: o.plan || "", info: "", meta });
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: true, agent: true, model: CODE_MODEL, thinking: "minimal",
+      signal: o.sig, web: false, stream: true, ...route(),
       message: `${base}\n\nБІРІНШІ НҰСҚА ІСКЕ ҚОСЫЛҒАНДА МЫНА АҚАУЛАР ТАБЫЛДЫ:\n${list}\n\nОсы ақауларды толық түзетіп, ЖАҢА толық жауап қайтар (сол ЖАУАП ФОРМАТЫМЕН). Бет көрінетін мазмұнмен ашылуы тиіс${game ? "; Game.run шақырылуы тиіс, draw әр кадрда сызуы және ойын жүруі тиіс" : "; әр .screen-нің id-сі болсын, біреуінде class=\"on\" тұрсын"}.\n\nАқаулы код (JS):\n\`\`\`js\n${(o.js || "").slice(0, 9000)}\n\`\`\``,
     });
     let raw = r.answer, tries = 0;
     while (!Q.template.parse(raw).end && tries < 2) {
       tries++;
-      const c = await Q.api.chat({ signal: o.sig, web: false, stream: false, agent: true, model: CODE_MODEL, thinking: "minimal", message: contPrompt(raw.slice(-1500), "===CSS===, ===JS===") });
+      const c = await Q.api.chat({ signal: o.sig, web: false, stream: false, ...route(), message: contPrompt(raw.slice(-1500), "===CSS===, ===JS===") });
       raw += "\n" + overlap(raw, unfence(c.answer));
     }
     const p = Q.template.parse(raw);
@@ -227,7 +231,7 @@ ${pa.css.slice(0, 3000)}`;
       ? `- Телефонда басқару (сенсор батырмалары controls ішінде), тік және көлденең экранға бейімділік\n- Қиындық деңгейге қарай өседі, соқтығысу/өмір, ұпай, рекорд, дыбыс (sfx)\n- Көзге ұрмайтын, анық сызылған графика, бөлшектер/анимация, оқылатын мәтін\n- Қателерсіз init/update/draw`
       : `- Мобильге бейімділік (390px): көлденең скролл жоқ, басу аймағы ≥44px, мәтін оқылады\n- Бос күйлер (.empty), енгізуді тексеру және түсінікті қате хабарлары (toast)\n- Анимациялар мен ауысулар (transition), басқанда кері байланыс\n- Қол жетімділік: белгішелік батырмаларға aria-label, жеткілікті контраст, label-дар\n- Қателерсіз JS (null тексерулері, localStorage қатесі)`;
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: false, tries: 2, agent: true, model: CODE_MODEL, thinking: "minimal",
+      signal: o.sig, web: false, stream: false, tries: 2, ...route(),
       message: `Сен қатаң код сапасын тексерушісің. Төмендегі веб-қосымшаны мына сапа тізімімен тексеріп, ең маңызды 3–6 жақсартуды ҚЫСҚА патчтар түрінде бер. Бүкіл кодты қайта жазба, жұмыс істеп тұрғанды бұзба.\n\nСАПА ТІЗІМІ:\n${checklist}\n\n${PATCH_FMT}\nЕгер жақсартуға тұрарлық ештеңе жоқ болса, [] қайтар.\n\nHTML:\n\`\`\`html\n${o.body.slice(0, 9000)}\n\`\`\`\nCSS:\n\`\`\`css\n${(o.css || "").slice(0, 3000)}\n\`\`\`\nJS:\n\`\`\`js\n${o.js.slice(0, 16000)}\n\`\`\``,
     });
     const res = applyPatches(o, arrOf(r.answer));
@@ -239,7 +243,7 @@ ${pa.css.slice(0, 3000)}`;
   async function edit(o) {
     const meta = o.meta || {};
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: false, tries: 3, agent: true, model: CODE_MODEL, thinking: "minimal",
+      signal: o.sig, web: false, stream: false, tries: 3, ...route(),
       message: `Төменде жұмыс істеп тұрған веб-қосымшаның бөліктері берілген. Пайдаланушы өтініші: «${o.request}».\nӨтінішті орындау үшін ТЕК керекті жерлерді өзгертетін патчтар жаса. Басқа бөлігін бұзба, бүкіл кодты қайта жазба. Түстерді өзгерту керек болса, CSS-те :root айнымалыларын (--accent, --accent2, --bg ...) қайта анықтайтын appendCss қолдан. Мәтіндер қазақша қалсын.\n\n${PATCH_FMT}\n\nHTML:\n\`\`\`html\n${o.body.slice(0, 14000)}\n\`\`\`\nCSS:\n\`\`\`css\n${(o.css || "").slice(0, 4000)}\n\`\`\`\nJS:\n\`\`\`js\n${o.js.slice(0, 22000)}\n\`\`\``,
     });
     const res = applyPatches(o, arrOf(r.answer));
@@ -248,5 +252,5 @@ ${pa.css.slice(0, 3000)}`;
     return Object.assign(res, { html: Q.template.build(o.title, res.body, res.css, res.js, meta) });
   }
 
-  Q.codegen = { write, repair, improve, edit, applyPatches, isRenderIssue, syntaxOk, CODE_MODEL, PLAN_MODEL };
+  Q.codegen = { route, write, repair, improve, edit, applyPatches, isRenderIssue, syntaxOk, CODE_MODEL, PLAN_MODEL };
 })(window.QWQ);

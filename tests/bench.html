@@ -1,0 +1,93 @@
+<!doctype html><meta charset="utf-8"><title>QWQ Builder · жылдамдық өлшеуі (ескі vs жаңа)</title>
+<body style="font:13px monospace;background:#000;color:#ddd;padding:16px;max-width:980px">
+<p><b>4 нақты сұрау</b> × 2 режим (ескі: <code>qwq.fast=0</code>, жаңа: әдепкі). Чат: 1 сұрау; агент: ойын, лендинг, құрал (толық конвейер).
+API кілті (сол origin-нің localStorage-ына жазылады, беттен тыс ешқайда кетпейді):</p>
+<input id="key" type="password" placeholder="qwq_..." style="width:340px;padding:6px"> <input id="only" placeholder="тек бір режим: old | new (бос = екеуі)" style="width:260px;padding:6px">
+<button id="go" style="padding:8px 16px">Бастау</button>
+<pre id="out"></pre><iframe id="app" style="width:390px;height:700px;border:1px solid #333;display:none"></iframe>
+<script>
+const IDEAS = [
+  { title: "Ғарыш қорғанысы", summary: "Ғарыштағы шапқыншыларды атып түсіретін ойын.", prompt: "Ғарыш шутері ойынын жаса: кеме төменде, жау жоғарыдан түседі, ату, ұпай, деңгей, рекорд, дыбыс. Телефонда сенсор батырмалары." },
+  { title: "Кофехана лендингі", summary: "Алматыдағы кофеханаға арналған лендинг бет.", prompt: "Кофехана үшін лендинг: hero, мәзір (сүзгімен), пікірлер, байланыс формасы, әдемі анимациялар." },
+  { title: "Ипотека калькуляторы", summary: "Ай сайынғы ипотека төлемін есептейтін құрал.", prompt: "Ипотека калькуляторы: баға, алғашқы жарна, мерзім, пайыз; ай сайынғы төлем, жалпы артық төлем, график." },
+];
+const CHAT = "Мен студенттерге арналған күнделікті міндеттер тізімін жасағым келеді. Қандай функциялар болуы керек?";
+const out = document.getElementById("out"), $ = (id) => document.getElementById(id);
+const log = (t) => { out.textContent += t + "\n"; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const s1 = (ms) => (ms == null ? "—" : (ms / 1000).toFixed(1));
+const kind = (m) => /әзірлеу жоспарын/.test(m) ? "plan" : /ЖАУАП ФОРМАТЫ/.test(m) ? "code" : /ақаулар табылды|ӨЛІ|Төмендегі қосымшаны іске/.test(m) ? "fix" : /код тексерушісісің/.test(m) ? "review" : /сапа тізімімен/i.test(m) ? "improve" : /интернеттен/.test(m) ? "search" : /Wikipedia|іздеу сөз/.test(m) ? "search" : "other";
+
+async function load(mode, key) {
+  localStorage.setItem("qwq.key", key); localStorage.setItem("qwq.demo", "0"); localStorage.setItem("qwq.tour.done", "1");
+  if (mode === "old") localStorage.setItem("qwq.fast", "0"); else localStorage.removeItem("qwq.fast");
+  const f = $("app"); f.style.display = "block"; f.src = "../index.html?b=" + Date.now();
+  await new Promise((r) => (f.onload = r)); await sleep(800);
+  const Q = f.contentWindow.QWQ; Q.demo.set(false);
+  // әр chat() шақыруын уақыттаймыз: бірінші токен, ұзақтығы, модель
+  const calls = []; const orig = Q.api.chat;
+  Q.api.chat = async function (o) {
+    const c = { k: kind(o.message || ""), t0: performance.now(), first: null, model: null, tries: 0 }; calls.push(c);
+    const od = o.onDelta; const o2 = Object.assign({}, o, { onDelta: (d, full) => { if (c.first == null) c.first = performance.now() - c.t0; od && od(d, full); } });
+    try { const r = await orig.call(this, o2); c.ms = performance.now() - c.t0; if (c.first == null) c.first = r.ttft != null ? r.ttft : c.ms; return r; }
+    catch (e) { c.ms = performance.now() - c.t0; c.err = e.message; throw e; }
+  };
+  return { Q, calls, win: f.contentWindow };
+}
+
+async function runChat(mode, key) {
+  const { Q, calls } = await load(mode, key);
+  Q.store.newChat(); Q.go("chat");
+  const doc = $("app").contentWindow.document;
+  const t0 = performance.now(); let first = null, words = 0;
+  const ta = doc.getElementById("input"); ta.value = CHAT;
+  const send = Q.chat.send(CHAT);
+  // бірінші сөз: чат көпіршігінде мәтін пайда болған сәт
+  const poll = setInterval(() => { const b = doc.querySelectorAll(".msg--ai"); const last = b[b.length - 1]; if (last && first == null && (last.textContent || "").trim().length > 2) first = performance.now() - t0; }, 50);
+  await send; clearInterval(poll);
+  const total = performance.now() - t0;
+  const ans = (Q.store.data.messages.slice(-1)[0] || {}).content || "";
+  const sentences = (ans.match(/[.!?…](\s|$)/g) || []).length;
+  return { mode, name: "чат", firstWord: first != null ? first : (calls[0] && calls[0].first), total, extra: `${ans.length} таңба, ${sentences} сөйлем`, err: calls.find((c) => c.err)?.err };
+}
+
+async function runApp(mode, key, idea) {
+  const { Q, calls } = await load(mode, key);
+  Q.store.newChat(); Q.store.data.idea = Object.assign({}, idea); Q.code.render();
+  const t0 = performance.now();
+  await Q.code.run();
+  const total = performance.now() - t0, D = Q.store.data, r = D.report || { left: ["есеп жоқ"] };
+  const stage = (k) => { const cs = calls.filter((c) => c.k === k && c.ms != null); return cs.length ? { sum: cs.reduce((a, c) => a + c.ms, 0), first: Math.min(...cs.map((c) => c.first ?? c.ms)), n: cs.length } : null; };
+  const P = (Q.constructor && $("app").contentWindow.__qwqPerf || {})["агент (тексерумен)"];
+  const stages = {}; for (const k of ["plan", "search", "code", "review", "fix", "improve"]) stages[k] = stage(k);
+  const html = (D.files && D.files.html) || "";
+  return { mode, name: idea.title, total, stages, perf: P && P.stages, left: r.left.length, leftList: r.left, type: D.meta && D.meta.type, style: D.meta && D.meta.style, htmlBytes: html.length, jsBytes: ((D.files && D.files.js) || "").length, calls: calls.length };
+}
+
+function table(rows) {
+  log("\n| Режим | Сынақ | 1-ші сөз/токен | Жоспар | Іздеу | Код (1-ші токен / жалпы) | Тексеру+түзету | Жақсарту | ЖИЫНЫ | Ақау | Көлемі |\n|---|---|---|---|---|---|---|---|---|---|---|");
+  for (const r of rows) {
+    if (r.name === "чат") { log(`| ${r.mode} | чат | ${s1(r.firstWord)} с | — | — | — | — | — | ${s1(r.total)} с | — | ${r.extra}${r.err ? " ҚАТЕ: " + r.err : ""} |`); continue; }
+    const g = (k) => (r.stages[k] ? s1(r.stages[k].sum) : "—");
+    const code = r.stages.code ? `${s1(r.stages.code.first)} / ${s1(r.stages.code.sum)}` : "—";
+    const ver = (r.stages.review || r.stages.fix) ? `${s1((r.stages.review?.sum || 0) + (r.stages.fix?.sum || 0))}` : "—";
+    log(`| ${r.mode} | ${r.name} (${r.type}/${r.style}) | ${s1(r.stages.plan?.first)} с | ${g("plan")} с | ${r.perf ? s1((r.perf.find((x) => x.label === "іздеу") || {}).sec * 1000) : g("search")} с | ${code} с | ${ver} с | ${g("improve")} с | ${s1(r.total)} с | ${r.left} | ${r.htmlBytes} б (js ${r.jsBytes}) |`);
+  }
+}
+
+$("go").onclick = async () => {
+  const key = $("key").value.trim(); if (!key) { log("API кілті керек."); return; }
+  const only = $("only").value.trim(); const modes = only ? [only] : ["old", "new"];
+  const rows = [];
+  for (const mode of modes) {
+    log(`▶ режим: ${mode}`);
+    try { const r = await runChat(mode, key); rows.push(r); log(`  чат: 1-ші сөз ${s1(r.firstWord)} с, жалпы ${s1(r.total)} с, ${r.extra}`); } catch (e) { log("  чат ҚАТЕ: " + e.message); }
+    for (const idea of IDEAS) {
+      try { const r = await runApp(mode, key, idea); rows.push(r); log(`  ${idea.title}: ${s1(r.total)} с, ақау ${r.left} ${r.leftList.join(" | ")}`); } catch (e) { log(`  ${idea.title} ҚАТЕ: ` + e.message); }
+    }
+  }
+  table(rows);
+  window.__bench = rows;
+  log("\nДайын. Кестені көшіріп ал.");
+};
+</script>

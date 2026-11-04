@@ -1,6 +1,5 @@
 /* QWQ Builder · тексеру нәтижесін AI-мен тексеру (review) және табылған ақауларды түзету (fixJs) */
 (function (Q) {
-  const route = { agent: true, model: Q.codegen.CODE_MODEL, thinking: "minimal" };
   const TICKS = "```";
   const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
   const syntaxOk = (js) => { try { new AsyncFn(js); return true; } catch (e) { return false; } };   // түзету кодты бұзбасын
@@ -16,7 +15,7 @@
     const list = o.errors.map((x) => "- " + x).join("\n");
     try {
       const pr = await Q.api.chat({
-        signal: o.sig, web: false, stream: false, ...route,
+        signal: o.sig, web: false, stream: false, ...Q.codegen.route(),
         message: `Төмендегі қосымшаны іске қосқанда мына ақаулар табылды:\n${list}\n\nМына ақауларды түзететін ҚЫСҚА патчтар жаса. Жауапта ТЕК JSON массив бер (түсініктеме, ${TICKS} жоқ). Патч түрлері:
 1) JS өзгерту: {"find":"JS-те дәл кездесетін 1-3 жол","replace":"жаңа мәтін"}
 2) JS соңына қосу (әрекетсіз батырмаға өңдегіш тағу үшін), міндетті түрде IIFE ішінде (атаулар қайталанып, "already declared" қатесі шықпасын): {"append":"(function(){ var b=document.querySelector('#id'); if(b) b.addEventListener('click', function(){ ... }); })();"}
@@ -43,7 +42,7 @@ ${fence("js", o.js)}`,
     } catch (e) { if (e.code === "abort") throw e; }
 
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: true, ...route,
+      signal: o.sig, web: false, stream: true, ...Q.codegen.route(),
       message: `Төмендегі қосымшаны іске қосқанда мына ақаулар табылды:\n${list}\n\nМына ақауларды түзет. JavaScript бөлігінің ТОЛЫҚ түзетілген нұсқасын қайтар: басқа функцияларды алып тастама, қысқартпа; әр батырмаға addEventListener арқылы нақты әрекет тағылсын. Жауапта ТЕК бір ${TICKS}js блогы бол.\n\nHTML (id-лар соған сәйкес болсын):\n${fence("html", o.body.slice(0, 12000))}\n\nҚазіргі JS:\n${fence("js", o.js)}`,
     });
     // жауапта HTML блогы да болуы мүмкін: алдымен ```js / ```javascript блогын іздейміз
@@ -56,7 +55,7 @@ ${fence("js", o.js)}`,
   /** AI тексеруі: жоспардағы функциялар кодта толық жасалған ба, әр батырма әрекетке қосылған ба → ақаулар тізімі (қазақша) */
   async function review(o) {
     const r = await Q.api.chat({
-      signal: o.sig, web: false, stream: false, tries: 2, ...route, thinking: "low",
+      signal: o.sig, web: false, stream: false, tries: 2, ...Q.codegen.route("low"),
       message: `Сен қатаң код тексерушісісің. Төменде қосымшаның жоспары, HTML және JS коды берілген.
 Тексер: 1) жоспардағы әр функция кодта толық жасалған ба; 2) әр батырма (button, data-go, data-open, onclick) бір нақты әрекетке қосылған ба (addEventListener немесе үлгінің data-go/data-open/data-close); 3) қай жері жұмыс істемейді (жоқ функция, бос өңдегіш, қате id, қате селектор).
 Жауапты ТЕК JSON түрінде қайтар (түсініктеме, ${TICKS} жоқ): {"ok":true,"problems":[]} немесе {"ok":false,"problems":[{"where":"батырма немесе функция атауы","what":"не жұмыс істемейді (қысқа, қазақша)"}]}. Ақау болмаса ok:true. Ең көбі 6 ақау, тек НАҚТЫ тапқандарың.
